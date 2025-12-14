@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runaway Log - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9f9f9;
+            --bg-tertiary: #f0f0f0;
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            
+            --border-color: #e0e0e0;
+            --border-color-hover: #667eea;
+            
+            --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.2);
+            
+            --accent-primary: #667eea;
+            --accent-primary-hover: #5568d3;
+            --accent-secondary: #f5576c;
+            --accent-secondary-hover: #e04556;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 320px;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+        }
+
+        .dashboard-container {
+            min-height: 100vh;
+            width: 100%;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 1rem;
+            }
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-header {
+                padding: 0.75rem 1rem;
+                margin-bottom: 1rem;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .user-info {
+                font-size: 1rem;
+            }
+
+            .user-icon {
+                font-size: 1.2rem;
+            }
+
+            .header-actions {
+                gap: 0.5rem;
+            }
+
+            .logout-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-icon {
+            font-size: 1.5rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .action-button {
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .action-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .logout-button {
+            padding: 0.5rem 1.5rem;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .logout-button:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .dashboard-main {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        .data-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 1024px) {
+            .data-section {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .data-section {
+                gap: 1rem;
+            }
+        }
+
+        .hit-section {
+            background: var(--bg-primary);
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2rem;
+            text-align: center;
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .hit-section {
+                padding: 2rem 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+                margin: 0 0 1.5rem 0;
+            }
+
+            .hit-button {
+                width: 160px;
+                height: 160px;
+            }
+
+            .hit-button-text {
+                font-size: 2rem;
+            }
+
+            .hit-button-icon {
+                font-size: 1.5rem;
+            }
+
+            .motivational-quote {
+                font-size: 0.95rem;
+                padding: 0 0.5rem;
+            }
+
+            .hit-count {
+                font-size: 1.1rem;
+            }
+
+            .hit-count strong {
+                font-size: 1.3rem;
+            }
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin: 0 0 2rem 0;
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .hit-button {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 40px rgba(245, 87, 108, 0.4);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .hit-button:hover:not(:disabled) {
+            box-shadow: 0 15px 50px rgba(245, 87, 108, 0.6);
+            transform: translateY(-5px);
+        }
+
+        .hit-button:disabled {
+            cursor: not-allowed;
+        }
+
+        .hit-button-text {
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+        }
+
+        .hit-button-icon {
+            font-size: 2rem;
+        }
+
+        .motivational-quote {
+            margin-top: 2rem;
+            font-size: 1.1rem;
+            color: var(--accent-primary);
+            font-style: italic;
+            font-weight: 500;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+            min-height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hit-count {
+            margin-top: 1rem;
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+        }
+
+        .hit-count strong {
+            color: var(--accent-secondary);
+            font-size: 1.5rem;
+        }
+
+        /* Fork in the Road game styles */
+        .fork-buttons-container {
+            display: flex;
+            gap: 60px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .fork-button {
+            min-width: 180px;
+            max-width: 200px;
+            width: 200px;
+            height: 200px;
+        }
+
+        /* Button color variations */
+        .fork-button.middle {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .fork-button.left {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .fork-button.right {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            .fork-buttons-container {
+                gap: 40px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .fork-buttons-container {
+                gap: 20px;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .fork-button {
+                min-width: 160px;
+                max-width: 200px;
+                width: 160px;
+                height: 160px;
+            }
+            
+            .fork-button .hit-button-text {
+                font-size: 2rem;
+            }
+            
+            .fork-button .hit-button-icon {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .fork-buttons-container {
+                gap: 15px;
+            }
+            
+            .fork-button {
+                min-width: 140px;
+                max-width: 180px;
+                width: 140px;
+                height: 140px;
+            }
+            
+            .fork-button .hit-button-text {
+                font-size: 1.75rem;
+            }
+            
+            .fork-button .hit-button-icon {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Statistics component */
+        .statistics-container {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .statistics-title {
+            font-size: 1.5rem;
+            margin: 0 0 1.5rem 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .statistics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .statistic-item {
+            text-align: center;
+        }
+
+        .statistic-label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .statistic-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        /* Calendar component */
+        .calendar-container {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .calendar-title {
+            font-size: 1.5rem;
+            margin: 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .calendar-nav-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .calendar-nav-btn:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+
+        .calendar-weekday {
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .calendar-day {
+            padding: 0.75rem;
+            text-align: center;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .calendar-day:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .calendar-day.has-activity {
+            background: var(--accent-primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.today {
+            background: var(--accent-secondary);
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 0 0 2px var(--accent-secondary);
+        }
+
+        .calendar-day.has-activity.level-1 {
+            background: rgba(102, 126, 234, 0.3);
+        }
+
+        .calendar-day.has-activity.level-2 {
+            background: rgba(102, 126, 234, 0.6);
+        }
+
+        .calendar-day.has-activity.level-3 {
+            background: rgba(102, 126, 234, 0.8);
+        }
+
+        .calendar-day.has-activity.level-4 {
+            background: rgba(102, 126, 234, 1);
+        }
+
+        /* Hit logs component */
+        .hit-logs-container {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 2rem;
+        }
+
+        .hit-logs-title {
+            font-size: 1.5rem;
+            margin: 0 0 1.5rem 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .hit-logs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .hit-log-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .hit-log-item:hover {
+            background: var(--bg-tertiary);
+            transform: translateX(5px);
+        }
+
+        .hit-log-date {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .hit-log-timezone {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .hit-log-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .hit-log-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .hit-log-btn:hover {
+            background: var(--bg-tertiary);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="user-info">
+                <span class="user-icon">👤</span>
+                <span class="username">Username</span>
+            </div>
+            <div class="header-actions">
+                <button class="action-button">Export</button>
+                <button class="action-button">Import</button>
+                <button class="action-button">Print</button>
+                <button class="logout-button">Logout</button>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <div class="hit-section">
+                <h2 class="section-title">14:30:45</h2>
+                
+                <button class="hit-button">
+                    <span class="hit-button-text">Run</span>
+                    <span class="hit-button-icon">🏃</span>
+                </button>
+                
+                <p class="motivational-quote">"每一次奔跑都是向更好的自己進發"</p>
+                <p class="hit-count">您已累計奔跑了 <strong>123</strong> 次</p>
+            </div>
+
+            <div class="data-section">
+                <!-- Statistics component -->
+                <div class="statistics-container">
+                    <h3 class="statistics-title">統計數據</h3>
+                    <div class="statistics-grid">
+                        <div class="statistic-item">
+                            <div class="statistic-label">總次數</div>
+                            <div class="statistic-value">123</div>
+                        </div>
+                        <div class="statistic-item">
+                            <div class="statistic-label">連續天數</div>
+                            <div class="statistic-value">7</div>
+                        </div>
+                        <div class="statistic-item">
+                            <div class="statistic-label">本月次數</div>
+                            <div class="statistic-value">30</div>
+                        </div>
+                        <div class="statistic-item">
+                            <div class="statistic-label">平均每天</div>
+                            <div class="statistic-value">4.5</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calendar component -->
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <h3 class="calendar-title">活動日曆</h3>
+                        <div class="calendar-nav">
+                            <button class="calendar-nav-btn">‹</button>
+                            <button class="calendar-nav-btn">›</button>
+                        </div>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="calendar-weekday">日</div>
+                        <div class="calendar-weekday">一</div>
+                        <div class="calendar-weekday">二</div>
+                        <div class="calendar-weekday">三</div>
+                        <div class="calendar-weekday">四</div>
+                        <div class="calendar-weekday">五</div>
+                        <div class="calendar-weekday">六</div>
+                        
+                        <!-- Calendar days -->
+                        <div class="calendar-day">1</div>
+                        <div class="calendar-day has-activity level-2">2</div>
+                        <div class="calendar-day has-activity level-3">3</div>
+                        <div class="calendar-day has-activity level-1">4</div>
+                        <div class="calendar-day has-activity level-4">5</div>
+                        <div class="calendar-day has-activity level-2">6</div>
+                        <div class="calendar-day">7</div>
+                        
+                        <div class="calendar-day has-activity level-1">8</div>
+                        <div class="calendar-day has-activity level-2">9</div>
+                        <div class="calendar-day has-activity level-3">10</div>
+                        <div class="calendar-day has-activity level-2">11</div>
+                        <div class="calendar-day has-activity level-1">12</div>
+                        <div class="calendar-day has-activity level-4">13</div>
+                        <div class="calendar-day">14</div>
+                        
+                        <div class="calendar-day has-activity level-2">15</div>
+                        <div class="calendar-day has-activity level-3">16</div>
+                        <div class="calendar-day has-activity level-2">17</div>
+                        <div class="calendar-day has-activity level-1">18</div>
+                        <div class="calendar-day has-activity level-3">19</div>
+                        <div class="calendar-day has-activity level-2">20</div>
+                        <div class="calendar-day has-activity level-4">21</div>
+                        
+                        <div class="calendar-day has-activity level-1">22</div>
+                        <div class="calendar-day has-activity level-2">23</div>
+                        <div class="calendar-day today">24</div>
+                        <div class="calendar-day">25</div>
+                        <div class="calendar-day">26</div>
+                        <div class="calendar-day">27</div>
+                        <div class="calendar-day">28</div>
+                        
+                        <div class="calendar-day">29</div>
+                        <div class="calendar-day">30</div>
+                        <div class="calendar-day">31</div>
+                        <div class="calendar-day">1</div>
+                        <div class="calendar-day">2</div>
+                        <div class="calendar-day">3</div>
+                        <div class="calendar-day">4</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hit logs component -->
+            <div class="hit-logs-container">
+                <h3 class="hit-logs-title">活動記錄</h3>
+                <div class="hit-logs-list">
+                    <div class="hit-log-item">
+                        <div>
+                            <div class="hit-log-date">2025-12-24 14:30:45</div>
+                            <div class="hit-log-timezone">UTC+8</div>
+                        </div>
+                        <div class="hit-log-actions">
+                            <button class="hit-log-btn">View</button>
+                            <button class="hit-log-btn">Delete</button>
+                        </div>
+                    </div>
+                    <div class="hit-log-item">
+                        <div>
+                            <div class="hit-log-date">2025-12-24 13:15:30</div>
+                            <div class="hit-log-timezone">UTC+8</div>
+                        </div>
+                        <div class="hit-log-actions">
+                            <button class="hit-log-btn">View</button>
+                            <button class="hit-log-btn">Delete</button>
+                        </div>
+                    </div>
+                    <div class="hit-log-item">
+                        <div>
+                            <div class="hit-log-date">2025-12-24 11:45:15</div>
+                            <div class="hit-log-timezone">UTC+8</div>
+                        </div>
+                        <div class="hit-log-actions">
+                            <button class="hit-log-btn">View</button>
+                            <button class="hit-log-btn">Delete</button>
+                        </div>
+                    </div>
+                    <div class="hit-log-item">
+                        <div>
+                            <div class="hit-log-date">2025-12-23 15:20:00</div>
+                            <div class="hit-log-timezone">UTC+8</div>
+                        </div>
+                        <div class="hit-log-actions">
+                            <button class="hit-log-btn">View</button>
+                            <button class="hit-log-btn">Delete</button>
+                        </div>
+                    </div>
+                    <div class="hit-log-item">
+                        <div>
+                            <div class="hit-log-date">2025-12-23 10:05:45</div>
+                            <div class="hit-log-timezone">UTC+8</div>
+                        </div>
+                        <div class="hit-log-actions">
+                            <button class="hit-log-btn">View</button>
+                            <button class="hit-log-btn">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

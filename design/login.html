@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runaway Log - 登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9f9f9;
+            --bg-tertiary: #f0f0f0;
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            
+            --border-color: #e0e0e0;
+            --border-color-hover: #667eea;
+            
+            --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.2);
+            
+            --accent-primary: #667eea;
+            --accent-primary-hover: #5568d3;
+            --accent-secondary: #f5576c;
+            --accent-secondary-hover: #e04556;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 320px;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-language-selector {
+            align-self: flex-end;
+            margin-bottom: 2rem;
+        }
+
+        .language-select {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+
+        .language-select option {
+            color: var(--text-primary);
+        }
+
+        .login-card {
+            background: var(--bg-primary);
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            text-align: center;
+        }
+
+        .login-title {
+            font-size: 2rem;
+            margin: 0 0 1rem 0;
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .login-subtitle {
+            font-size: 1.2rem;
+            margin: 0 0 1rem 0;
+            color: var(--text-secondary);
+        }
+
+        .login-slogan {
+            font-size: 1.1rem;
+            margin: 0 0 2rem 0;
+            color: var(--accent-primary);
+            font-style: italic;
+            font-weight: 500;
+        }
+
+        .login-error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .login-form-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .login-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1rem;
+            align-self: flex-start;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--border-color-hover);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-input.disabled {
+            background: var(--bg-tertiary);
+            cursor: not-allowed;
+            color: var(--text-tertiary);
+        }
+
+        .login-button {
+            padding: 1rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            color: white;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .login-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.3);
+        }
+
+        .login-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .login-card {
+                padding: 2rem 1rem;
+            }
+
+            .login-title {
+                font-size: 1.5rem;
+            }
+
+            .login-subtitle {
+                font-size: 1rem;
+            }
+
+            .login-slogan {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-language-selector">
+            <select class="language-select" aria-label="Select language">
+                <option value="en_us">English</option>
+                <option value="zh_cn" selected>中文简体</option>
+                <option value="zh_tw">中文繁體</option>
+            </select>
+        </div>
+        
+        <div class="login-card">
+            <h1 class="login-title">Runaway Log</h1>
+            <p class="login-subtitle">追踪你的每一次努力</p>
+            <p class="login-slogan">"每一次奔跑都是向更好的自己進發"</p>
+            
+            <!-- <div class="login-error">用户名不能为空</div> -->
+            
+            <form class="login-form">
+                <div class="login-form-group">
+                    <label for="username" class="login-label">
+                        用户名
+                    </label>
+                    <input
+                        id="username"
+                        type="text"
+                        class="login-input"
+                        placeholder="请输入用户名"
+                        autofocus
+                        maxLength="20"
+                    />
+                </div>
+                
+                <div class="login-form-group">
+                    <label for="password" class="login-label">
+                        密码
+                    </label>
+                    <input
+                        id="password"
+                        type="password"
+                        class="login-input disabled"
+                        placeholder="无密码登录"
+                        disabled
+                    />
+                </div>
+                
+                <button type="submit" class="login-button">
+                    登录
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

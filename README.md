@@ -78,4 +78,4 @@ Built with AI assistance.
 
 ## Translations
 
-- [中文](README_CN.md)
+- [中文](readme_cn.md)

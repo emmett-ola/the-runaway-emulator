@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runaway Log - About</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9f9f9;
+            --bg-tertiary: #f0f0f0;
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            
+            --border-color: #e0e0e0;
+            --border-color-hover: #667eea;
+            
+            --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.2);
+            
+            --accent-primary: #667eea;
+            --accent-primary-hover: #5568d3;
+            --accent-secondary: #f5576c;
+            --accent-secondary-hover: #e04556;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 320px;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+        }
+
+        .about-container {
+            min-height: 100vh;
+            width: 100%;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .about-container {
+                padding: 1rem;
+            }
+        }
+
+        .about-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .about-header {
+                padding: 0.75rem 1rem;
+                margin-bottom: 1rem;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .user-info {
+                font-size: 1rem;
+            }
+
+            .user-icon {
+                font-size: 1.2rem;
+            }
+
+            .header-actions {
+                gap: 0.5rem;
+            }
+
+            .logout-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-icon {
+            font-size: 1.5rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .action-button {
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .action-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .logout-button {
+            padding: 0.5rem 1.5rem;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .logout-button:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .about-main {
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        .about-title {
+            font-size: 2rem;
+            margin: 0 0 2rem 0;
+            color: var(--text-primary);
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .about-section {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .about-section {
+                padding: 1.5rem;
+                margin-bottom: 1rem;
+            }
+        }
+
+        .about-section h2 {
+            font-size: 1.5rem;
+            margin: 0 0 1.5rem 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .about-section p {
+            font-size: 1rem;
+            margin: 0 0 1.5rem 0;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .about-section ul {
+            margin: 0 0 1.5rem 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .about-section li {
+            margin-bottom: 0.5rem;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 6rem;
+            margin: 0 0 1rem 0;
+        }
+
+        .version-info {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .version-info p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .version-number {
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="about-container">
+        <header class="about-header">
+            <div class="user-info">
+                <span class="user-icon">👤</span>
+                <span class="username">Username</span>
+            </div>
+            <div class="header-actions">
+                <button class="action-button">Export</button>
+                <button class="action-button">Import</button>
+                <button class="action-button">Print</button>
+                <button class="logout-button">Logout</button>
+            </div>
+        </header>
+
+        <main class="about-main">
+            <div class="logo-container">
+                <div class="logo">🏃</div>
+                <h1 class="about-title">About Runaway Log</h1>
+            </div>
+            
+            <div class="about-section">
+                <h2>What is Runaway Log?</h2>
+                <p>Runaway Log is a simple and intuitive activity tracking application designed to help you stay motivated and track your daily running or exercise activities.</p>
+                <p>With Runaway Log, you can:</p>
+                <ul>
+                    <li>Track your daily running activities with a simple tap</li>
+                    <li>View your activity history in a beautiful calendar view</li>
+                    <li>Get motivated with inspirational quotes</li>
+                    <li>Play fun games to keep your motivation high</li>
+                    <li>Customize the app with different themes and accent colors</li>
+                    <li>Export and import your data for backup and sharing</li>
+                </ul>
+            </div>
+            
+            <div class="about-section">
+                <h2>Features</h2>
+                <ul>
+                    <li>Simple and intuitive interface</li>
+                    <li>Beautiful calendar view to track your activity history</li>
+                    <li>Real-time statistics and insights</li>
+                    <li>Motivational quotes to keep you inspired</li>
+                    <li>Fun games to keep your motivation high</li>
+                    <li>Customizable themes and accent colors</li>
+                    <li>Export and import functionality</li>
+                    <li>Responsive design for all devices</li>
+                    <li>Multi-language support</li>
+                </ul>
+            </div>
+            
+            <div class="about-section">
+                <h2>Version Information</h2>
+                <p>Runaway Log is a free and open-source project, constantly evolving with new features and improvements.</p>
+                <div class="version-info">
+                    <p>Current Version: <span class="version-number">v1.0.0</span></p>
+                    <p>Released: December 10, 2025</p>
+                    <p>Last Updated: December 10, 2025</p>
+                </div>
+            </div>
+            
+            <div class="about-section">
+                <h2>Contributors</h2>
+                <p>Runaway Log is developed and maintained by a passionate team of developers and designers.</p>
+                <ul>
+                    <li>Lead Developer: [Name]</li>
+                    <li>UI/UX Designer: [Name]</li>
+                    <li>Contributors: [Names]</li>
+                </ul>
+            </div>
+            
+            <div class="about-section">
+                <h2>Support</h2>
+                <p>If you have any questions, issues, or suggestions for Runaway Log, please don't hesitate to reach out to us.</p>
+                <ul>
+                    <li>Email: support@runawaylog.com</li>
+                    <li>GitHub: github.com/runawaylog/runaway-log</li>
+                    <li>Twitter: @runawaylog</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

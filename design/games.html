@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runaway Log - Games</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9f9f9;
+            --bg-tertiary: #f0f0f0;
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            
+            --border-color: #e0e0e0;
+            --border-color-hover: #667eea;
+            
+            --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.2);
+            
+            --accent-primary: #667eea;
+            --accent-primary-hover: #5568d3;
+            --accent-secondary: #f5576c;
+            --accent-secondary-hover: #e04556;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 320px;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+        }
+
+        .games-container {
+            min-height: 100vh;
+            width: 100%;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .games-container {
+                padding: 1rem;
+            }
+        }
+
+        .games-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: var(--bg-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .games-header {
+                padding: 0.75rem 1rem;
+                margin-bottom: 1rem;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .user-info {
+                font-size: 1rem;
+            }
+
+            .user-icon {
+                font-size: 1.2rem;
+            }
+
+            .header-actions {
+                gap: 0.5rem;
+            }
+
+            .logout-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-icon {
+            font-size: 1.5rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .action-button {
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .action-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .logout-button {
+            padding: 0.5rem 1.5rem;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .logout-button:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .games-main {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        .games-title {
+            font-size: 2rem;
+            margin: 0 0 2rem 0;
+            color: var(--text-primary);
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .games-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .games-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        .game-card {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-icon {
+            font-size: 4rem;
+            margin: 0 0 1rem 0;
+        }
+
+        .game-card h3 {
+            font-size: 1.5rem;
+            margin: 0 0 1rem 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .game-description {
+            font-size: 1rem;
+            margin: 0 0 1.5rem 0;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .game-button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .game-button:hover {
+            background: var(--accent-primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="games-container">
+        <header class="games-header">
+            <div class="user-info">
+                <span class="user-icon">👤</span>
+                <span class="username">Username</span>
+            </div>
+            <div class="header-actions">
+                <button class="action-button">Export</button>
+                <button class="action-button">Import</button>
+                <button class="action-button">Print</button>
+                <button class="logout-button">Logout</button>
+            </div>
+        </header>
+
+        <main class="games-main">
+            <h1 class="games-title">Games Hub</h1>
+            
+            <div class="games-grid">
+                <div class="game-card">
+                    <div class="game-icon">🎴</div>
+                    <h3>卡牌遊戲</h3>
+                    <p class="game-description">挑戰你的記憶力和反應速度，完成卡牌配對任務。</p>
+                    <button class="game-button">開始遊戲</button>
+                </div>
+                
+                <div class="game-card">
+                    <div class="game-icon">🎮</div>
+                    <h3>小遊戲集合</h3>
+                    <p class="game-description">包含多種休閒小遊戲，讓你在休息時放鬆心情。</p>
+                    <button class="game-button">開始遊戲</button>
+                </div>
+                
+                <div class="game-card">
+                    <div class="game-icon">🏃</div>
+                    <h3>跑步挑戰</h3>
+                    <p class="game-description">設定目標，挑戰自己的跑步記錄，贏得獎勵。</p>
+                    <button class="game-button">開始挑戰</button>
+                </div>
+                
+                <div class="game-card">
+                    <div class="game-icon">🎯</div>
+                    <h3>目標達成</h3>
+                    <p class="game-description">設定每日目標，堅持完成，獲得成就感。</p>
+                    <button class="game-button">開始挑戰</button>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
