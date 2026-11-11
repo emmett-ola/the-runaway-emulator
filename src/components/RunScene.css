@@ -1,0 +1,185 @@
+/* R1 post-Run scene — "The Last Bus"
+   Every class rendered by RunScene.tsx has a rule here (spec §6 Class coverage).
+   Colours come from the theme variables in src/index.css so dark mode and the
+   calendar themes keep working. Stacks above the import dialog (z-index 1000). */
+
+.run-scene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  animation: run-scene-overlay-in 150ms ease-out both;
+}
+
+.run-scene-dialog {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.75rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  animation: run-scene-dialog-in 180ms ease-out both;
+}
+
+.run-scene-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.run-scene-body {
+  margin: 0 0 1.5rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.run-scene-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.run-scene-choice {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.run-scene-choice:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color-hover);
+}
+
+.run-scene-choice:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.run-scene-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.run-scene-skip {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.run-scene-skip:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.run-scene-skip:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.run-scene-outcome {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: 10px;
+}
+
+.run-scene-close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--bg-primary);
+  background: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.run-scene-close:hover {
+  background: var(--accent-primary-hover);
+  border-color: var(--accent-primary-hover);
+}
+
+.run-scene-close:focus-visible {
+  outline: 3px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+@keyframes run-scene-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes run-scene-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* AC-A7: the app's first reduced-motion block — the card is simply present. */
+@media (prefers-reduced-motion: reduce) {
+  .run-scene-overlay,
+  .run-scene-dialog {
+    animation: none;
+  }
+
+  .run-scene-choice,
+  .run-scene-skip,
+  .run-scene-close {
+    transition: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .run-scene-dialog {
+    padding: 1.25rem;
+    border-radius: 14px;
+  }
+
+  .run-scene-title {
+    font-size: 1.2rem;
+  }
+}

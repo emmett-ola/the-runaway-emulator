@@ -177,4 +177,14 @@ export const zh_tw = {
     hybrid_storage: "混合模式",
     hybrid_storage_description: "結合本地儲存和雲端儲存，離線可用並自動同步"
   },
+  run_scene: {
+    title: "末班車",
+    body: "你趕到街角時，末班車剛好進站。車門開著，司機在等你。",
+    choice_board: "上車。",
+    choice_wait: "站著不動。",
+    outcome_board: "車經過公司門口，沒有減速。你沒有起身，也沒人問你為什麼。",
+    outcome_wait: "車門關上，車走了。街上很安靜。你繞遠路走回家。",
+    skip: "跳過",
+    close: "回到這裡。"
+  },
 };

@@ -84,4 +84,16 @@
     <placeholder_password>Password (not supported yet)</placeholder_password>
     <button>Let's Go! 🚀</button>
   </login>
+
+  <!-- R1 post-Run scene -->
+  <run_scene>
+    <title>The Last Bus</title>
+    <body>You reach the corner as the last bus pulls in. The door is open. The driver waits.</body>
+    <choice_board>Get on.</choice_board>
+    <choice_wait>Stay on the kerb.</choice_wait>
+    <outcome_board>The bus passes your office without slowing. You stay in your seat. Nobody asks why.</outcome_board>
+    <outcome_wait>The doors close and the bus goes. The street is quiet. You walk home the long way.</outcome_wait>
+    <skip>Skip</skip>
+    <close>Back to it.</close>
+  </run_scene>
 </translations>

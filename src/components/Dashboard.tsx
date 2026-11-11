@@ -9,6 +9,7 @@ import { setTheme } from '../darkMode';
 import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
 import { PrintCalendar } from './PrintCalendar';
+import { RunScene } from './RunScene';
 import { SettingsMenu } from './SettingsMenu';
 import { Statistics } from './Statistics';
 import { i18n } from '../i18n/i18n';
@@ -31,10 +32,14 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const [currentTime, setCurrentTime] = useState(new Date());
   const [gameSettings, setGameSettings] = useState<{ forkInTheRoadEnabled?: boolean }>({ forkInTheRoadEnabled: false });
   const [correctButtonIndex, setCorrectButtonIndex] = useState(0);
+  const [sceneOpen, setSceneOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([null, null, null]);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // R1: scene flags live in component state only — never persisted.
+  const sceneShownRef = useRef(false);
+  const sceneTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Update current time every second
   useEffect(() => {
@@ -324,7 +329,18 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
       setQuote(getRandomQuote());
     }
 
-    setTimeout(() => setIsAnimating(false), 600);
+    setTimeout(() => {
+      setIsAnimating(false);
+
+      // R1 (spec §2.3): on the success path only, and only once per page
+      // session, the post-Run scene mounts at the end of this existing 600 ms
+      // window. No new timer, no change to the animation timing.
+      if (isCorrectButton && !sceneShownRef.current) {
+        sceneShownRef.current = true;
+        sceneTriggerRef.current = targetButton ?? null;
+        setSceneOpen(true);
+      }
+    }, 600);
     
     // Reset correct button index for next attempt if Fork game is enabled
     if (isForkGameEnabled) {
@@ -411,6 +427,17 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
 
   const handleTimezoneChange = () => {
     setTimezone(getSavedTimezone());
+  };
+
+  // R1 close path: Skip, Close and Escape all land here. Nothing is recorded —
+  // the hit from the Run itself was already stored by the existing path.
+  const handleSceneClose = () => {
+    setSceneOpen(false);
+    // AC-A6: focus returns to the Run control that opened the scene.
+    const trigger = sceneTriggerRef.current;
+    if (trigger) {
+      trigger.focus();
+    }
   };
 
   const applyImportedSettings = (settings: NonNullable<UserData['settings']>) => {
@@ -527,6 +554,8 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
           </>
         )}
       </main>
+
+      {sceneOpen && <RunScene onClose={handleSceneClose} />}
 
       {showPrintDialog && (
         <PrintCalendar

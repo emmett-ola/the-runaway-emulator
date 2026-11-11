@@ -84,4 +84,16 @@
     <placeholder_password>密碼（暫時不支援）</placeholder_password>
     <button>開始跑路 🚀</button>
   </login>
+
+  <!-- R1 post-Run scene -->
+  <run_scene>
+    <title>末班車</title>
+    <body>你趕到街角時，末班車剛好進站。車門開著，司機在等你。</body>
+    <choice_board>上車。</choice_board>
+    <choice_wait>站著不動。</choice_wait>
+    <outcome_board>車經過公司門口，沒有減速。你沒有起身，也沒人問你為什麼。</outcome_board>
+    <outcome_wait>車門關上，車走了。街上很安靜。你繞遠路走回家。</outcome_wait>
+    <skip>跳過</skip>
+    <close>回到這裡。</close>
+  </run_scene>
 </translations>

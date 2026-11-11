@@ -177,4 +177,14 @@ export const en_us = {
     hybrid_storage: "Hybrid Mode",
     hybrid_storage_description: "Combines local and cloud storage, offline available with auto-sync"
   },
+  run_scene: {
+    title: "The Last Bus",
+    body: "You reach the corner as the last bus pulls in. The door is open. The driver waits.",
+    choice_board: "Get on.",
+    choice_wait: "Stay on the kerb.",
+    outcome_board: "The bus passes your office without slowing. You stay in your seat. Nobody asks why.",
+    outcome_wait: "The doors close and the bus goes. The street is quiet. You walk home the long way.",
+    skip: "Skip",
+    close: "Back to it."
+  },
 };
