@@ -32,11 +32,21 @@ function withoutAdditions(tree: Tree): Tree {
   delete result.print;
   return result;
 }
+// G1 exception: only declarative dialog naming/focus attributes, never geometry or refs.
+function isPrintCalendarAccessibilityAddition(source: ts.SourceFile, node: ts.JsxOpeningElement | ts.JsxSelfClosingElement, property: ts.JsxAttributeLike) {
+  if (source.fileName !== 'src/components/PrintCalendar.tsx' || !ts.isJsxAttribute(property)) return false;
+  const attribute = property.name.getText(source);
+  const className = node.attributes.properties.find(p => ts.isJsxAttribute(p) && p.name.getText(source) === 'className');
+  if (className?.getText(source) === 'className="print-dialog"') return ['role', 'aria-modal', 'aria-labelledby', 'tabIndex'].includes(attribute);
+  const parent = node.parent.parent;
+  return node.tagName.getText(source) === 'h2' && ts.isJsxElement(parent)
+    && parent.openingElement.attributes.properties.some(p => p.getText(source) === 'className="print-dialog-header"') && attribute === 'id';
+}
 function jsxProjection(source: ts.SourceFile) {
   const result: unknown[] = [];
   function visit(node: ts.Node) {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxClosingElement(node)) {
-      result.push([ts.SyntaxKind[node.kind], node.tagName.getText(source), 'attributes' in node ? node.attributes.properties.filter(p => !ts.isJsxAttribute(p) || !['aria-label', 'title', 'alt'].includes(p.name.getText(source))).map(p => p.getText(source).replace(/\s+/g, ' ')) : []]);
+      result.push([ts.SyntaxKind[node.kind], node.tagName.getText(source), 'attributes' in node ? node.attributes.properties.filter(p => (!ts.isJsxAttribute(p) || !['aria-label', 'title', 'alt'].includes(p.name.getText(source))) && !isPrintCalendarAccessibilityAddition(source, node as ts.JsxOpeningElement | ts.JsxSelfClosingElement, p)).map(p => p.getText(source).replace(/\s+/g, ' ')) : []]);
     }
     ts.forEachChild(node, visit);
   }
@@ -62,6 +72,28 @@ describe(`i18n preservation — fixture from ${baseline.pin}`, () => {
       expect(hash(JSON.stringify(jsxProjection(parse(file))))).toBe(expected);
     });
   }
+  it('pins the three locale logout decisions in both XML and shipped TS', () => {
+    for (const [locale, value] of Object.entries({ en_us: 'Logout', zh_cn: '退出登录', zh_tw: '登出' })) {
+      expect(lookup(translations[locale as keyof typeof translations], 'dashboard.logout')).toBe(value);
+      expect(lookup(xmlTree(readFileSync(`src/i18n/${locale}.xml`, 'utf8')), 'dashboard.logout')).toBe(value);
+    }
+  });
+  it('PrintCalendar accessibility projection exception is declarative and scoped to the dialog and its title', () => {
+    const source = parse('src/components/PrintCalendar.tsx');
+    const additions: string[] = [];
+    function visit(node: ts.Node) {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+        for (const property of node.attributes.properties) {
+          if (isPrintCalendarAccessibilityAddition(source, node, property)) additions.push(property.getText(source));
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+    expect(additions).toEqual(['role="dialog"', 'aria-modal="true"', 'aria-labelledby={titleId}', 'tabIndex={-1}', 'id={titleId}']);
+    expect(source.text).toContain('const titleId = useId();');
+    expect(hash(JSON.stringify(jsxProjection(source)))).toBe('71139206aa383d55d28fd2701c8eb5c8bb490e3ae4bd59c39363fe9aae586d6d');
+  });
   for (const [file, expected] of Object.entries(baseline.sceneHashes)) {
     it(`${file}: run_scene source block is byte-identical`, () => {
       const text = readFileSync(file, 'utf8');

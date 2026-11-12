@@ -3,7 +3,7 @@
   "treeHashes": {
     "en_us": "598fcff31e427cfe1661af77a251a1954bf973918ef4c409d1ecf0395d5ff7d3",
     "zh_cn": "b154027f46d8c94d24867ea24f5b3fb9028e523aeb11688dcd65909e89c3b305",
-    "zh_tw": "a7ce19b44a3439cddeb17a09821a3e6e8e863d6ae981e0a94e3a215b29269b96"
+    "zh_tw": "bfb2122c42181c89284d76aa56213b1671251c4b76a14e39b6d8e997c8755327"
   },
   "cards": [
     { "id": "card-1", "number": "#001", "name": "🏃‍♂️ 跑路新手", "description": "第一次想跑路的你", "rarity": "common", "owned": true, "count": 3 },

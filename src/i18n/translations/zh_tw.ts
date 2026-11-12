@@ -85,7 +85,7 @@ export const zh_tw = {
     title: "想要跑路嗎？",
     run_button: "跑路",
     hit_count: "跑路次數：<strong>{count}</strong>",
-    logout: "退出登錄",
+    logout: "登出",
     settings: "⚙️ 設定",
     brand_title: "跑路模擬器"
   },

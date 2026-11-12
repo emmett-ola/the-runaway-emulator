@@ -8,6 +8,8 @@ import { i18n } from '../i18n/i18n';
 import type { SupportedLanguage } from '../i18n/i18n';
 import { getStorageMode, setStorageMode, type StorageMode, loadUserData, saveUserData } from '../storage';
 import { exportUserData, importUserData } from '../exportImport';
+import { PrintCalendar } from '../components/PrintCalendar';
+import type { HitLog } from '../types';
 import './Settings.css';
 
 export const Settings = () => {
@@ -42,6 +44,8 @@ export const Settings = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialog, setImportDialog] = useState<{ show: boolean; data: { username: string; hits: Array<{ id: string; timestamp: number; date: string }> } | null }>({ show: false, data: null });
   
+  const [printDialog, setPrintDialog] = useState<{ hits: HitLog[]; month: Date } | null>(null);
+
   // Force re-render when language changes
   const [, setLanguageChangeTrigger] = useState(0);
   
@@ -119,8 +123,16 @@ export const Settings = () => {
   };
   
   // Handle print calendar
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    const month = new Date();
+    let hits: HitLog[] = [];
+    try {
+      const userData = await loadUserData(username);
+      hits = userData?.hits || [];
+    } catch {
+      // A failed load still opens an empty calendar.
+    }
+    setPrintDialog({ hits, month });
   };
   
   useEffect(() => {
@@ -367,6 +379,15 @@ export const Settings = () => {
           </div>
         </div>
       </div>
+      {printDialog && (
+        <PrintCalendar
+          hits={printDialog.hits}
+          username={username}
+          currentMonth={printDialog.month}
+          timezone={selectedTimezone}
+          onClose={() => setPrintDialog(null)}
+        />
+      )}
     </Layout>
   );
 };

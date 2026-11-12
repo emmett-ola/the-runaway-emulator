@@ -317,6 +317,19 @@
   color: #333;
 }
 
+body.print-mode {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .print-close-btn,
+  .print-btn,
+  .cancel-btn,
+  .print-action-btn {
+    transition: none;
+  }
+}
+
 /* Print-specific styles */
 @media print {
   /* Hide everything except the print overlay */
@@ -329,11 +342,18 @@
     visibility: visible;
   }
 
+  /* Invisible app boxes still paginate; retain only the sheet and its ancestors. */
+  body.print-mode #root *:not(.print-overlay):not(.print-overlay *):not(:has(.print-overlay)) {
+    display: none !important;
+  }
+
   .print-overlay {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
+    bottom: auto;
+    display: block;
     background: white;
     padding: 0;
   }

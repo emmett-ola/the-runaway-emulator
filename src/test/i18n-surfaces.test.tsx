@@ -6,6 +6,9 @@ import { Navigation } from '../components/Navigation';
 import { PrintCalendar } from '../components/PrintCalendar';
 import { GamesHub } from '../pages/games/GamesHub';
 import { Login } from '../components/Login';
+import { Settings } from '../pages/Settings';
+import { loadUserData } from '../storage';
+import userEvent from '@testing-library/user-event';
 import { i18n } from '../i18n/i18n';
 import type { SupportedLanguage } from '../i18n/i18n';
 import { collection, copy, localeTags, rarities } from './i18n-copy';
@@ -35,6 +38,8 @@ const existing = (key: string) => {
 };
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(loadUserData).mockReset().mockResolvedValue({ username: 'testuser', hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection });
   localStorage.clear();
   sessionStorage.clear();
   sessionStorage.setItem('runawaylog-username', 'testuser');
@@ -109,6 +114,41 @@ describe.each(locales)('i18n rendered surfaces — %s', locale => {
     fireEvent.click(container.querySelector('.nav-user')!);
     checkNav(container);
   });
+  it('Print dialog declares its exact modal contract and resolves the localized title id', () => {
+    const { container, getByRole } = render(<PrintCalendar hits={[]} username="testuser" currentMonth={month} onClose={close} />);
+    const dialog = getByRole('dialog', { name: expected(locale, 'print.dialog_title') });
+    expect(dialog).toBe(container.querySelector('.print-dialog'));
+    expect(dialog).toHaveAttribute('role', 'dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAttribute('tabindex', '-1');
+    const title = container.querySelector('.print-dialog-header > h2')!;
+    expect(title.id).not.toBe('');
+    expect(dialog).toHaveAttribute('aria-labelledby', title.id);
+    expect(document.getElementById(title.id)).toBe(title);
+    expect(title).toHaveTextContent(expected(locale, 'print.dialog_title'));
+    expect(dialog).toHaveFocus();
+    expect(document.body).toHaveClass('print-mode');
+  });
+  it('Settings opens the loaded current-month calendar, never the Settings print surface', async () => {
+    localStorage.setItem('runawaylog-timezone', 'America/Los_Angeles');
+    const timestamp = Date.UTC(2026, 11, 1, 1);
+    vi.mocked(loadUserData).mockResolvedValueOnce({ username: 'testuser', hits: [{ id: 'loaded', timestamp, date: '2026-12-01' }] });
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { container, getByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
+    expect(loadUserData).not.toHaveBeenCalled();
+    const opener = getByRole('button', { name: existing('settings.print_calendar') });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = await waitFor(() => getByRole('dialog'));
+    expect(loadUserData).toHaveBeenCalledExactlyOnceWith('testuser');
+    expect(print).not.toHaveBeenCalled();
+    expect(dialog.querySelector('.print-month-title')).toHaveTextContent(month.toLocaleDateString(localeTags[locale], { month: 'long', year: 'numeric' }));
+    expect(texts(dialog, '.print-stat-value')).toEqual(['1', '1']);
+    expect(dialog.querySelector('.print-username')).toHaveTextContent('testuser');
+    expect(container.querySelector('.print-day-count')).toHaveTextContent('1');
+    fireEvent.click(dialog.querySelector('.cancel-btn')!);
+    expect(opener).toHaveFocus();
+  });
   it('Print dialog and printed sheet resolve every label, Sunday-first weekday, month and date', () => {
     const { container } = render(<PrintCalendar hits={[]} username="testuser" currentMonth={month} onClose={close} timezone="UTC" />);
     checkPrint(container, locale);
@@ -134,6 +174,86 @@ describe.each(locales)('i18n rendered surfaces — %s', locale => {
   it('Login language picker has the approved localized accessible name', () => {
     const { container } = render(<Login onLogin={vi.fn()} />);
     expect(container.querySelector('select')).toHaveAccessibleName(expected(locale, 'login.select_language'));
+  });
+});
+
+describe('Print dialog interaction contract', () => {
+  it('traps forward/reverse Tab from the container, boundaries and escaped focus; recovers after printing', async () => {
+    const user = userEvent.setup();
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    const { container, unmount } = render(<PrintCalendar hits={[]} username="testuser" currentMonth={month} onClose={close} />);
+    const dialog = container.querySelector('.print-dialog')!;
+    const first = container.querySelector('.print-close-btn') as HTMLElement;
+    const last = container.querySelector('.cancel-btn') as HTMLElement;
+    expect(dialog).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(last).toHaveFocus();
+    await user.tab();
+    expect(first).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(last).toHaveFocus();
+    outside.focus();
+    await user.tab();
+    expect(first).toHaveFocus();
+    outside.focus();
+    await user.tab({ shift: true });
+    expect(last).toHaveFocus();
+    const print = vi.spyOn(window, 'print').mockImplementation(() => outside.focus());
+    fireEvent.click(container.querySelector('.print-btn')!);
+    expect(print).toHaveBeenCalledOnce();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    unmount();
+    expect(outside).toHaveFocus();
+    expect(document.body).not.toHaveClass('print-mode');
+    outside.remove();
+  });
+  it.each(['escape', 'overlay', 'close', 'cancel'])('closes via %s and returns focus to the connected opener', async path => {
+    const { container, getByRole, queryByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
+    const opener = getByRole('button', { name: existing('settings.print_calendar') });
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = await waitFor(() => getByRole('dialog'));
+    fireEvent.click(dialog.querySelector('.print-month-title')!);
+    expect(getByRole('dialog')).toBe(dialog);
+    if (path === 'escape') fireEvent.keyDown(window, { key: 'Escape' });
+    else fireEvent.click(container.querySelector(path === 'overlay' ? '.print-overlay' : path === 'close' ? '.print-close-btn' : '.cancel-btn')!);
+    expect(queryByRole('dialog')).toBeNull();
+    expect(opener).toHaveFocus();
+    expect(document.body).not.toHaveClass('print-mode');
+  });
+  it('does not restore focus to a disconnected opener', () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const focus = vi.spyOn(opener, 'focus');
+    const { unmount } = render(<PrintCalendar hits={[]} username="testuser" currentMonth={month} onClose={close} />);
+    opener.remove();
+    unmount();
+    expect(focus).not.toHaveBeenCalled();
+  });
+  it.each(['missing', 'rejected'])('Settings falls back to empty hits for %s data', async mode => {
+    if (mode === 'missing') vi.mocked(loadUserData).mockResolvedValueOnce(null);
+    else vi.mocked(loadUserData).mockRejectedValueOnce(new Error('load unavailable'));
+    const { getByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
+    fireEvent.click(getByRole('button', { name: existing('settings.print_calendar') }));
+    const dialog = await waitFor(() => getByRole('dialog'));
+    expect(texts(dialog, '.print-stat-value')).toEqual(['0', '0']);
+    expect(dialog.querySelectorAll('.print-day-number')).toHaveLength(30);
+  });
+  it('captures the click month once before awaiting the data load', async () => {
+    let resolve!: (value: Awaited<ReturnType<typeof loadUserData>>) => void;
+    vi.mocked(loadUserData).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    vi.setSystemTime(new Date(2026, 10, 30, 23, 59, 58));
+    const { getByRole, queryByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
+    fireEvent.click(getByRole('button', { name: existing('settings.print_calendar') }));
+    expect(queryByRole('dialog')).toBeNull();
+    vi.setSystemTime(new Date(2026, 11, 1, 0, 0, 1));
+    await act(async () => resolve({ username: 'testuser', hits: [] }));
+    const dialog = getByRole('dialog');
+    expect(dialog.querySelector('.print-month-title')).toHaveTextContent('November 2026');
+    expect(dialog.querySelectorAll('.print-day-number')).toHaveLength(30);
   });
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import type { HitLog } from '../types';
 import { getSavedTimezone, timestampToDateString } from '../timezone';
 import { i18n } from '../i18n/i18n';
@@ -18,25 +18,54 @@ interface PrintCalendarProps {
 }
 
 export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone: propTimezone }: PrintCalendarProps) => {
+  const titleId = useId();
   const printRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
   const timezone = propTimezone || getSavedTimezone();
 
   useEffect(() => {
-    // Add class to body for print styling
-    document.body.classList.add('print-mode');
+    closeRef.current = onClose;
+  }, [onClose]);
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
+  useEffect(() => {
+    const dialog = printRef.current?.parentElement;
+    const opener = document.activeElement;
+    document.body.classList.add('print-mode');
+    dialog?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button:not([disabled])'));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (!dialog.contains(active) || active === dialog) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
       }
     };
 
-    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('keydown', handleKeyDown);
       document.body.classList.remove('print-mode');
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
     };
-  }, [onClose]);
+  }, []);
 
   const getCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -92,13 +121,14 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
 
   const handlePrint = () => {
     window.print();
+    printRef.current?.parentElement?.focus();
   };
 
   return (
     <div className="print-overlay" onClick={onClose}>
-      <div className="print-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="print-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className="print-dialog-header">
-          <h2>{i18n.t('print.dialog_title')}</h2>
+          <h2 id={titleId}>{i18n.t('print.dialog_title')}</h2>
           <button onClick={onClose} className="print-close-btn" aria-label={i18n.t('print.close')}>
             ✕
           </button>
