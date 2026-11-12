@@ -12,6 +12,7 @@ export const Profile = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [email, setEmail] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [fallbackRegistrationDate] = useState(() => Date.now());
   
   const handleLogout = () => {
     sessionStorage.removeItem('runawaylog-username');
@@ -65,7 +66,7 @@ export const Profile = () => {
   }
 
   const avatarUrl = getGravatarUrl(userData.profile?.email, 200, username);
-  const registrationDate = userData.profile?.registrationDate || Date.now();
+  const registrationDate = userData.profile?.registrationDate || fallbackRegistrationDate;
   const memberSince = formatMemberSince(registrationDate);
   const joinDate = new Date(registrationDate).toLocaleDateString('en-US', {
     year: 'numeric',
