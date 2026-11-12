@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Test CI helpers
+        run: node --test .github/tests/*.checks.mjs
+      - name: Lint (full output; at most five errors and no warnings)
+        env:
+          LINT_REPORT: ${{ runner.temp }}/eslint.json
+        run: node .github/scripts/lint-gate.mjs
+      - run: npx tsc -b
+      - run: npm run test -- --run
+      - run: npm run build
+      - name: Attach exact checkout SHA
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$BUILD_SHA"
+          printf '%s\n' "$BUILD_SHA" > build-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: |
+            dist/
+            build-sha.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  verify-production:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: verified-build
+      - name: Verify production bytes and anonymous deployment identity
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        # No deploy, CLI, token, or secret. Anonymous Vercel metadata may be
+        # unavailable (401/403); that is an explicit failure, never a green claim.
+        run: node .github/scripts/verify-production.mjs verified-build
