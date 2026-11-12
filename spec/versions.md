@@ -13,7 +13,7 @@ build injects it, so the label cannot drift from the artifact — the current
 | 1.0.3 | `07f31d3` | `dpl_aubqqvhih…` | **CI infrastructure, not a version** | CI workflow, lint gate (baseline capped at 5) and deployed-identity check. Owner granted the GitHub `workflow` scope; first run `43196112701` passed (build 43 s, verify-production 10 s). Shipped bytes are identical to 1.0.2, so by the rule below this is not catalogued as a version |
 | 1.1.0 | `9fa97b9` | `dpl_2nqrXCLCLaP6BuW2kfbUKFzFqGT9` | **live** | rebuild step 1b: typed locale modules replace the XML generator, parity test and frozen fixture in place, generator/baselines/XML deleted. Copy byte-identical across 609 values; lint improved 5→4; CI green (`43200660149`). No user-visible change; rollback target for the next release |
 | 1.1.0-note | — | — | — | the app shell half of step 1 is still pending; D-13 (Profile body copy hardcoded in all locales) came out of this acceptance and is the next increment |
-| 1.1.1 | — | — | planned | rebuild step 2 (settings + print) |
+| 1.1.1 | `c2b91b3` | `dpl_7dHipEWZyx4WMyRTLEX6K2gnu7zD` | **live** | D-13: the eight Profile labels are localized in all three locales; the frozen fixture became a copy baseline rather than a key ceiling (negative mutation test proves it bites). No other change; rollback target for the next release |
 | 1.1.2 | — | — | planned | rebuild step 3 (run + scene) |
 | 1.1.3 | — | — | planned | rebuild step 4 (games + album) |
 | 1.1.4 | — | — | planned | rebuild step 5 (profile + about) |
