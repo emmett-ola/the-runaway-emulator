@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { i18n } from '../i18n/i18n';
 import type { SupportedLanguage } from '../i18n/i18n';
 import { collection, copy, localeTags, rarities } from './i18n-copy';
-import baseline from './i18n-preservation-baseline.json';
+import { renderedExpectations as baseline } from './i18n-copy';
 
 vi.mock('../storage', async importOriginal => {
   const actual = await importOriginal<typeof import('../storage')>();

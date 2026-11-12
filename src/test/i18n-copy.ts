@@ -48,3 +48,103 @@ export const copy: Record<string, Record<SupportedLanguage, string>> = Object.fr
 export const localeTags: Record<SupportedLanguage, string> = { en_us: 'en-US', zh_cn: 'zh-CN', zh_tw: 'zh-TW' };
 export const collection = { '#001': 3, '#002': 5, '#003': 2, '#004': 0, '#005': 1, '#006': 0, '#007': 0, '#008': 0 };
 export const rarities = ['common', 'common', 'uncommon', 'uncommon', 'rare', 'rare', 'legendary', 'legendary'];
+
+// Independent rendered expectations retained when the generator hash baseline is removed.
+export const renderedExpectations = {
+  "cards": [
+    {
+      "id": "card-1",
+      "number": "#001",
+      "name": "🏃‍♂️ 跑路新手",
+      "description": "第一次想跑路的你",
+      "rarity": "common",
+      "owned": true,
+      "count": 3
+    },
+    {
+      "id": "card-2",
+      "number": "#002",
+      "name": "💼 工作日噩梦",
+      "description": "周一早上的你",
+      "rarity": "common",
+      "owned": true,
+      "count": 5
+    },
+    {
+      "id": "card-3",
+      "number": "#003",
+      "name": "☕ 咖啡续命",
+      "description": "靠咖啡撑过一天",
+      "rarity": "uncommon",
+      "owned": true,
+      "count": 2
+    },
+    {
+      "id": "card-4",
+      "number": "#004",
+      "name": "🌅 摸鱼达人",
+      "description": "上班摸鱼的高手",
+      "rarity": "uncommon",
+      "owned": false,
+      "count": 0
+    },
+    {
+      "id": "card-5",
+      "number": "#005",
+      "name": "🏖️ 向往自由",
+      "description": "梦想中的海滩",
+      "rarity": "rare",
+      "owned": true,
+      "count": 1
+    },
+    {
+      "id": "card-6",
+      "number": "#006",
+      "name": "🚀 说走就走",
+      "description": "勇敢辞职的你",
+      "rarity": "rare",
+      "owned": false,
+      "count": 0
+    },
+    {
+      "id": "card-7",
+      "number": "#007",
+      "name": "🌟 新的开始",
+      "description": "开启新的人生",
+      "rarity": "legendary",
+      "owned": false,
+      "count": 0
+    },
+    {
+      "id": "card-8",
+      "number": "#008",
+      "name": "🌈 自由翱翔",
+      "description": "实现财务自由",
+      "rarity": "legendary",
+      "owned": false,
+      "count": 0
+    }
+  ],
+  "zhCnChrome": {
+    "pages": [
+      "第 1 页 / 共 2 页",
+      "第 2 页 / 共 2 页"
+    ],
+    "counts": [
+      "3 张",
+      "5 张",
+      "2 张",
+      "1 张"
+    ],
+    "buttons": [
+      "✕",
+      "← 上一页",
+      "下一页 →"
+    ],
+    "menu": [
+      "个人资料",
+      "关于我们",
+      "退出登录"
+    ]
+  }
+};
