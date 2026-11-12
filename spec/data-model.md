@@ -91,6 +91,27 @@ empty store.
   migration, and offers merge or replace. Merge dedupes by `hit.id`; replace is
   total and confirmed. Import never writes without one confirmation step.
 
+## Sequencing (added 2026-11-12 after the first dispatch was blocked)
+
+The on-disk switch to `schemaVersion: 2` **cannot** land before `src/auth.ts` is
+rewritten: `auth.ts:160-176` and `:237-239` read and write the legacy map directly,
+and a v2 store under the same key would make every existing user look new. That is
+a real contradiction, caught by the developer before any code was written.
+
+So the target above lands in two stages, same direction:
+
+1. **Now (step 1a):** `lib/storage` becomes the single owner of the legacy bytes —
+   one parse, one write path, used by both `src/storage.ts` and `src/auth.ts` — and
+   repairs a missing registration date on read, writing it back. `Hit.date` becomes
+   derived at render time; nothing else about the shape changes.
+2. **With the auth rewrite** (skeleton/shell step): the same module migrates to
+   `schemaVersion: 2` behind the tests written in stage 1, and `auth.ts` calls the
+   typed record instead of the raw map.
+
+Until stage 2, "v2" describes the direction, not the file on disk. Recorded here
+rather than silently deferred, because a shape change is exactly the kind of thing
+that must not be discovered by a user.
+
 ## Acceptance for this document
 
 A reviewer can: (1) take any legacy `localStorage` dump, run the migration, and
