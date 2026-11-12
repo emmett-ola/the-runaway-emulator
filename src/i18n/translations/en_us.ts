@@ -115,7 +115,9 @@ export const en_us = {
     games: "Games",
     storage: "Storage",
     settings: "Settings",
-    profile: "Profile"
+    profile: "Profile",
+    about: "About",
+    releases: "Releases"
   },
   login: {
     title: "🏃 The Runaway Simulator",

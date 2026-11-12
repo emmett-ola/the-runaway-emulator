@@ -1,0 +1,14 @@
+{
+  "en_us": {
+    "dashboard.hit_count": "Runaway Count: <strong>{count}</strong>",
+    "import_dialog.warning": "⚠️ This data is from a different user ({username}).<br/>The data will be imported to your current account ({currentUsername}).<br/>If you want to import to \"{username}\", please logout and login as that user first."
+  },
+  "zh_cn": {
+    "dashboard.hit_count": "跑路次数：<strong>{count}</strong>",
+    "import_dialog.warning": "⚠️ 此数据来自不同用户 ({username})。<br/>数据将导入到您当前的账户 ({currentUsername})。<br/>如果您想导入到 \"{username}\"，请先退出当前账户并以该用户身份登录。"
+  },
+  "zh_tw": {
+    "dashboard.hit_count": "跑路次數：<strong>{count}</strong>",
+    "import_dialog.warning": "⚠️ 此資料來自不同使用者 ({username})。<br/>資料將匯入到您當前的帳戶 ({currentUsername})。<br/>如果您想匯入到 \"{username}\"，請先退出當前帳戶並以該使用者身份登入。"
+  }
+}

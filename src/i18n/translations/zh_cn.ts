@@ -115,7 +115,9 @@ export const zh_cn = {
     games: "游戏",
     storage: "存储",
     settings: "设置",
-    profile: "个人资料"
+    profile: "个人资料",
+    about: "关于",
+    releases: "更新"
   },
   login: {
     title: "🏃 跑路模拟器",

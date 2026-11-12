@@ -115,7 +115,9 @@ export const zh_tw = {
     games: "遊戲",
     storage: "儲存",
     settings: "設定",
-    profile: "個人資料"
+    profile: "個人資料",
+    about: "關於",
+    releases: "更新"
   },
   login: {
     title: "🏃 跑路模擬器",
