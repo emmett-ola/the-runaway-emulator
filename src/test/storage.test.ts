@@ -37,7 +37,32 @@ describe('storage', () => {
       localStorage.setItem('runawaylog-data', JSON.stringify(data));
       
       const result = await loadUserData('testuser');
-      expect(result).toEqual(userData);
+      const repairedData = {
+        ...userData,
+        profile: { registrationDate: 1234567890000 }
+      };
+      expect(result?.username).toBe(userData.username);
+      expect(result?.hits).toEqual(userData.hits);
+      expect(result).toEqual(repairedData);
+      expect(JSON.parse(localStorage.getItem('runawaylog-data')!)).toEqual({ testuser: repairedData });
+    });
+
+    it('retains the repaired registration date on a second load after the clock changes', async () => {
+      localStorage.setItem('runawaylog-data', JSON.stringify({
+        testuser: { username: 'testuser', hits: [] }
+      }));
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(1234567890000);
+      try {
+        const first = await loadUserData('testuser');
+        expect(first?.profile?.registrationDate).toBe(1234567890000);
+        clock.mockReturnValue(1234567900000);
+        const second = await loadUserData('testuser');
+        expect(second).toEqual(first);
+        expect(second?.profile?.registrationDate).toBe(1234567890000);
+        expect(JSON.parse(localStorage.getItem('runawaylog-data')!)).toEqual({ testuser: second });
+      } finally {
+        clock.mockRestore();
+      }
     });
 
     it('handles corrupted data gracefully', async () => {

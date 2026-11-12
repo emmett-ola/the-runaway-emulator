@@ -1,4 +1,5 @@
 import type { UserData } from './types';
+import { readWholeMap, writeWholeMap, writeRecord } from './lib/storage';
 
 export type AuthStatus = 'logged_out' | 'logging_in' | 'logged_in' | 'registering';
 
@@ -157,7 +158,7 @@ export const login = async (username: string, password: string): Promise<UserDat
   await new Promise(resolve => setTimeout(resolve, 500));
   
   // Get user data
-  const allUserData = JSON.parse(localStorage.getItem('runawaylog-data') || '{}');
+  const allUserData = readWholeMap();
   let userData = allUserData[username];
   
   // If user doesn't exist, create a new user automatically
@@ -173,7 +174,7 @@ export const login = async (username: string, password: string): Promise<UserDat
     
     // Save new user data
     allUserData[username] = userData;
-    localStorage.setItem('runawaylog-data', JSON.stringify(allUserData));
+    writeWholeMap(allUserData);
     
     // If password is provided, save credentials
     if (password.trim()) {
@@ -234,9 +235,7 @@ export const register = async (username: string, password: string, email?: strin
   };
   
   // Save user data
-  const allUsers = JSON.parse(localStorage.getItem('runawaylog-data') || '{}');
-  allUsers[username] = newUser;
-  localStorage.setItem('runawaylog-data', JSON.stringify(allUsers));
+  writeRecord(newUser);
   
   // Save credentials
   saveUserCredentials(username, password);

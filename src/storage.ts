@@ -1,6 +1,7 @@
 import type { UserData, HitLog } from './types';
 import { getCurrentTimestamp, timestampToDateString, getSavedTimezone } from './timezone';
 import { loadToken } from './auth';
+import { readRecord, writeRecord, deleteRecord } from './lib/storage';
 
 // Storage types
 export type StorageMode = 'local' | 'cloud';
@@ -14,7 +15,6 @@ export interface StorageAdapter {
   deleteUserData(username: string): Promise<void>;
 }
 
-const STORAGE_KEY = 'runawaylog-data';
 const STORAGE_MODE_KEY = 'runawaylog-storage-mode';
 
 // Mock API URLs - these would be replaced with actual API endpoints in production
@@ -50,11 +50,7 @@ export const setStorageMode = (mode: StorageMode): void => {
 export class LocalStorageAdapter implements StorageAdapter {
   async loadUserData(username: string): Promise<UserData | null> {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) return null;
-      
-      const allUsers: Record<string, UserData> = JSON.parse(data);
-      const userData = allUsers[username];
+      const userData = readRecord(username);
       
       if (!userData) return null;
       
@@ -86,11 +82,7 @@ export class LocalStorageAdapter implements StorageAdapter {
 
   async saveUserData(userData: UserData): Promise<void> {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      const allUsers: Record<string, UserData> = data ? JSON.parse(data) : {};
-      
-      allUsers[userData.username] = userData;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allUsers));
+      writeRecord(userData);
     } catch (error) {
       console.error('Error saving user data to local storage:', error);
     }
@@ -140,13 +132,7 @@ export class LocalStorageAdapter implements StorageAdapter {
 
   async deleteUserData(username: string): Promise<void> {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) return;
-      
-      const allUsers: Record<string, UserData> = JSON.parse(data);
-      delete allUsers[username];
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allUsers));
+      deleteRecord(username);
     } catch (error) {
       console.error('Error deleting user data from local storage:', error);
     }
@@ -172,11 +158,7 @@ export class CloudStorageAdapter implements StorageAdapter {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // Mock response - replace with actual API response
-      const data = localStorage.getItem(STORAGE_KEY);
-      if (!data) return null;
-      
-      const allUsers: Record<string, UserData> = JSON.parse(data);
-      return allUsers[username] || null;
+      return readRecord(username);
     } catch (error) {
       console.error('Error loading user data from cloud storage:', error);
       return null;
