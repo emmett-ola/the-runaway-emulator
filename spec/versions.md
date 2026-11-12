@@ -8,8 +8,10 @@ build injects it, so the label cannot drift from the artifact — the current
 | Version | Commit | Deployment | Status | Notes |
 | --- | --- | --- | --- | --- |
 | 1.0.0 | `fdcd731` | `dpl_ErTiLAB9bGR7u96HgFHjuD6bUYjZ` | superseded | print-surface repair + `zh_tw` logout, accepted with the independence caveat of that round |
-| 1.0.1 | `41ad563` | `dpl_33Up86dcjbfTkTaPue45gDd2RugK` | **live** | two React correctness fixes; acceptance 5/6, D-12 deferred; rollback target for the next release |
-| 1.1.0 | — | — | planned | rebuild step 1 (skeleton, CI, storage + i18n libraries); no intended user-visible change |
+| 1.0.1 | `41ad563` | `dpl_33Up86dcjbfTkTaPue45gDd2RugK` | superseded | two React correctness fixes; acceptance 5/6, D-12 deferred at the time |
+| 1.0.2 | `27978af` | `dpl_8EMnAtYkcu41qMfx1CvWqA6jAVkZ` | **live** | rebuild step 1a: `lib/storage` owns the stored bytes; a missing registration date is repaired once and persisted (closes D-12). No user-visible change. Rollback target for the next release |
+| 1.0.3 | — | — | pending push | CI workflow + lint gate + deployed-identity check, committed at `d1ac281` and blocked by the GitHub `workflow` scope, which only the owner can grant |
+| 1.1.0 | — | — | planned | rebuild step 1b (i18n typed locales + app shell); no intended user-visible change |
 | 1.1.1 | — | — | planned | rebuild step 2 (settings + print) |
 | 1.1.2 | — | — | planned | rebuild step 3 (run + scene) |
 | 1.1.3 | — | — | planned | rebuild step 4 (games + album) |
