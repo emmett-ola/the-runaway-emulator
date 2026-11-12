@@ -1,0 +1,50 @@
+import type { SupportedLanguage } from '../i18n/i18n';
+
+// Approved §6 copy, independent of the live translation trees (also usable in RED).
+export const copy: Record<string, Record<SupportedLanguage, string>> = Object.fromEntries([
+  ['print.dialog_title', 'Print Calendar', '打印日历', '列印日曆'],
+  ['print.close', 'Close', '关闭', '關閉'],
+  ['print.weekday_sun', 'Sun', '日', '日'],
+  ['print.weekday_mon', 'Mon', '一', '一'],
+  ['print.weekday_tue', 'Tue', '二', '二'],
+  ['print.weekday_wed', 'Wed', '三', '三'],
+  ['print.weekday_thu', 'Thu', '四', '四'],
+  ['print.weekday_fri', 'Fri', '五', '五'],
+  ['print.weekday_sat', 'Sat', '六', '六'],
+  ['print.legend_less', 'Less', '少', '少'],
+  ['print.legend_more', 'More', '多', '多'],
+  ['print.stats_total', 'Total Escape Dreams:', '跑路梦想总数：', '跑路夢想總數：'],
+  ['print.stats_month', 'This Month:', '本月：', '本月：'],
+  ['print.tip', '💡 Tip: Enable "Background graphics" in print settings for colors', '💡 提示：在打印设置中开启「背景图形」以显示颜色', '💡 提示：在列印設定中開啟「背景圖形」以顯示顏色'],
+  ['print.button_print', '🖨️ Print', '🖨️ 打印', '🖨️ 列印'],
+  ['print.button_cancel', 'Cancel', '取消', '取消'],
+  ['games.card_1_name', '🏃‍♂️ Rookie Runaway', '🏃‍♂️ 跑路新手', '🏃‍♂️ 跑路新手'],
+  ['games.card_1_desc', 'The first time you thought about leaving', '第一次想跑路的你', '第一次想跑路的您'],
+  ['games.card_2_name', '💼 Workday Nightmare', '💼 工作日噩梦', '💼 工作日噩夢'],
+  ['games.card_2_desc', 'Monday morning, again', '周一早上的你', '週一早上的您'],
+  ['games.card_3_name', '☕ Running on Coffee', '☕ 咖啡续命', '☕ 咖啡續命'],
+  ['games.card_3_desc', 'Getting through the day on coffee', '靠咖啡撑过一天', '靠咖啡撐過一天'],
+  ['games.card_4_name', '🌅 Professional Slacker', '🌅 摸鱼达人', '🌅 摸魚達人'],
+  ['games.card_4_desc', 'Expert at looking busy', '上班摸鱼的高手', '上班摸魚的高手'],
+  ['games.card_5_name', '🏖️ Longing for Freedom', '🏖️ 向往自由', '🏖️ 嚮往自由'],
+  ['games.card_5_desc', 'The beach in your head', '梦想中的海滩', '夢想中的海灘'],
+  ['games.card_6_name', '🚀 Off You Go', '🚀 说走就走', '🚀 說走就走'],
+  ['games.card_6_desc', 'Quitting without a plan', '勇敢辞职的你', '勇敢辭職的您'],
+  ['games.card_7_name', '🌟 Clean Slate', '🌟 新的开始', '🌟 新的開始'],
+  ['games.card_7_desc', 'A different life starts here', '开启新的人生', '開啟新的人生'],
+  ['games.card_8_name', '🌈 Soaring Free', '🌈 自由翱翔', '🌈 自由翱翔'],
+  ['games.card_8_desc', 'Financial freedom', '实现财务自由', '實現財務自由'],
+  ['games.rarity_common', 'COMMON', '普通', '普通'],
+  ['games.rarity_uncommon', 'UNCOMMON', '精良', '精良'],
+  ['games.rarity_rare', 'RARE', '稀有', '稀有'],
+  ['games.rarity_legendary', 'LEGENDARY', '传说', '傳說'],
+  ['games.album_page_info', 'Page {current} of {total}', '第 {current} 页 / 共 {total} 页', '第 {current} 頁 / 共 {total} 頁'],
+  ['games.album_owned_count', '{count} owned', '{count} 张', '{count} 張'],
+  ['games.album_prev', '← Previous', '← 上一页', '← 上一頁'],
+  ['games.album_next', 'Next →', '下一页 →', '下一頁 →'],
+  ['login.select_language', 'Select language', '选择语言', '選擇語言'],
+].map(([key, en_us, zh_cn, zh_tw]) => [key, { en_us, zh_cn, zh_tw }]));
+
+export const localeTags: Record<SupportedLanguage, string> = { en_us: 'en-US', zh_cn: 'zh-CN', zh_tw: 'zh-TW' };
+export const collection = { '#001': 3, '#002': 5, '#003': 2, '#004': 0, '#005': 1, '#006': 0, '#007': 0, '#008': 0 };
+export const rarities = ['common', 'common', 'uncommon', 'uncommon', 'rare', 'rare', 'legendary', 'legendary'];

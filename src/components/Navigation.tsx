@@ -72,7 +72,7 @@ export const Navigation = ({ username, onLogout }: NavigationProps) => {
                   onClick={closeUserMenu}
                 >
                   <span className="user-menu-icon">👤</span>
-                  <span className="user-menu-text">个人资料</span>
+                  <span className="user-menu-text">{i18n.t('navigation.profile')}</span>
                 </NavLink>
                 <NavLink 
                   to="/about" 
@@ -80,7 +80,7 @@ export const Navigation = ({ username, onLogout }: NavigationProps) => {
                   onClick={closeUserMenu}
                 >
                   <span className="user-menu-icon">ℹ️</span>
-                  <span className="user-menu-text">关于我们</span>
+                  <span className="user-menu-text">{i18n.t('navigation.about')}</span>
                 </NavLink>
                 <button 
                   className="user-menu-item user-menu-item-logout"
@@ -90,7 +90,7 @@ export const Navigation = ({ username, onLogout }: NavigationProps) => {
                   }}
                 >
                   <span className="user-menu-icon">🚪</span>
-                  <span className="user-menu-text">退出登录</span>
+                  <span className="user-menu-text">{i18n.t('dashboard.logout')}</span>
                 </button>
               </div>
             )}

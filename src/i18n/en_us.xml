@@ -39,7 +39,50 @@
     <card_album>📚 Card Album</card_album>
     <prev_card>Previous Card</prev_card>
     <next_card>Next Card</next_card>
+    <card_1_name>🏃‍♂️ Rookie Runaway</card_1_name>
+    <card_1_desc>The first time you thought about leaving</card_1_desc>
+    <card_2_name>💼 Workday Nightmare</card_2_name>
+    <card_2_desc>Monday morning, again</card_2_desc>
+    <card_3_name>☕ Running on Coffee</card_3_name>
+    <card_3_desc>Getting through the day on coffee</card_3_desc>
+    <card_4_name>🌅 Professional Slacker</card_4_name>
+    <card_4_desc>Expert at looking busy</card_4_desc>
+    <card_5_name>🏖️ Longing for Freedom</card_5_name>
+    <card_5_desc>The beach in your head</card_5_desc>
+    <card_6_name>🚀 Off You Go</card_6_name>
+    <card_6_desc>Quitting without a plan</card_6_desc>
+    <card_7_name>🌟 Clean Slate</card_7_name>
+    <card_7_desc>A different life starts here</card_7_desc>
+    <card_8_name>🌈 Soaring Free</card_8_name>
+    <card_8_desc>Financial freedom</card_8_desc>
+    <rarity_common>COMMON</rarity_common>
+    <rarity_uncommon>UNCOMMON</rarity_uncommon>
+    <rarity_rare>RARE</rarity_rare>
+    <rarity_legendary>LEGENDARY</rarity_legendary>
+    <album_page_info>Page {current} of {total}</album_page_info>
+    <album_owned_count>{count} owned</album_owned_count>
+    <album_prev>← Previous</album_prev>
+    <album_next>Next →</album_next>
   </games>
+  <!-- Print view -->
+  <print>
+    <dialog_title>Print Calendar</dialog_title>
+    <close>Close</close>
+    <weekday_sun>Sun</weekday_sun>
+    <weekday_mon>Mon</weekday_mon>
+    <weekday_tue>Tue</weekday_tue>
+    <weekday_wed>Wed</weekday_wed>
+    <weekday_thu>Thu</weekday_thu>
+    <weekday_fri>Fri</weekday_fri>
+    <weekday_sat>Sat</weekday_sat>
+    <legend_less>Less</legend_less>
+    <legend_more>More</legend_more>
+    <stats_total>Total Escape Dreams:</stats_total>
+    <stats_month>This Month:</stats_month>
+    <tip>💡 Tip: Enable "Background graphics" in print settings for colors</tip>
+    <button_print>🖨️ Print</button_print>
+    <button_cancel>Cancel</button_cancel>
+  </print>
   <!-- Dashboard -->
   <dashboard>
     <title>Dreaming of Escape?</title>
@@ -129,6 +172,7 @@
   </navigation>
   <!-- Login -->
   <login>
+    <select_language>Select language</select_language>
     <title>🏃 The Runaway Simulator</title>
     <subtitle>Track your runaway dreams</subtitle>
     <register_title>🏃 Register Account</register_title>

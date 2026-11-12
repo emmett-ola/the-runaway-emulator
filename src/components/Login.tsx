@@ -72,7 +72,7 @@ export const Login = ({ onLogin }: LoginProps) => {
             value={selectedLanguage} 
             onChange={handleLanguageChange} 
             className="language-select"
-            aria-label="Select language"
+            aria-label={i18n.t('login.select_language')}
           >
             {i18n.getSupportedLanguages().map(lang => (
               <option key={lang.code} value={lang.code}>

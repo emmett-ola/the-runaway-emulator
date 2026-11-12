@@ -91,7 +91,8 @@ describe('i18n XML parity', () => {
       function leaves(object: Translation): number {
         return Object.values(object).reduce((count, value) => count + (typeof value === 'string' ? 1 : leaves(value)), 0);
       }
-      expect(leaves(parsed)).toBe(162);
+      expect(leaves(parsed)).toBe(leaves(translation));
+      console.log(`${locale}: XML ${leaves(parsed)} leaves; exported TS ${leaves(translation)} leaves.`);
     });
   }
 

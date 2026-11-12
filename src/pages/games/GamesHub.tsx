@@ -9,12 +9,88 @@ import './GamesHub.css';
 type Card = {
   id: string;
   number: string;
-  name: string;
-  description: string;
+  nameKey: string;
+  descKey: string;
   rarity: 'common' | 'uncommon' | 'rare' | 'legendary';
   owned: boolean;
   count: number;
 };
+
+// 8张占位卡片数据，带有编号
+const CARDS: Card[] = [
+  {
+    id: 'card-1',
+    number: '#001',
+    nameKey: 'games.card_1_name',
+    descKey: 'games.card_1_desc',
+    rarity: 'common',
+    owned: true,
+    count: 3
+  },
+  {
+    id: 'card-2',
+    number: '#002',
+    nameKey: 'games.card_2_name',
+    descKey: 'games.card_2_desc',
+    rarity: 'common',
+    owned: true,
+    count: 5
+  },
+  {
+    id: 'card-3',
+    number: '#003',
+    nameKey: 'games.card_3_name',
+    descKey: 'games.card_3_desc',
+    rarity: 'uncommon',
+    owned: true,
+    count: 2
+  },
+  {
+    id: 'card-4',
+    number: '#004',
+    nameKey: 'games.card_4_name',
+    descKey: 'games.card_4_desc',
+    rarity: 'uncommon',
+    owned: false,
+    count: 0
+  },
+  {
+    id: 'card-5',
+    number: '#005',
+    nameKey: 'games.card_5_name',
+    descKey: 'games.card_5_desc',
+    rarity: 'rare',
+    owned: true,
+    count: 1
+  },
+  {
+    id: 'card-6',
+    number: '#006',
+    nameKey: 'games.card_6_name',
+    descKey: 'games.card_6_desc',
+    rarity: 'rare',
+    owned: false,
+    count: 0
+  },
+  {
+    id: 'card-7',
+    number: '#007',
+    nameKey: 'games.card_7_name',
+    descKey: 'games.card_7_desc',
+    rarity: 'legendary',
+    owned: false,
+    count: 0
+  },
+  {
+    id: 'card-8',
+    number: '#008',
+    nameKey: 'games.card_8_name',
+    descKey: 'games.card_8_desc',
+    rarity: 'legendary',
+    owned: false,
+    count: 0
+  }
+];
 
 export const GamesHub = () => {
   const navigate = useNavigate();
@@ -24,83 +100,7 @@ export const GamesHub = () => {
   const [showCardAlbum, setShowCardAlbum] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 6;
-  const [currentPageCards, setCurrentPageCards] = useState<typeof cards>([]);
-  
-  // 8张占位卡片数据，带有编号
-  const cards: Card[] = [
-    {
-      id: 'card-1',
-      number: '#001',
-      name: '🏃‍♂️ 跑路新手',
-      description: '第一次想跑路的你',
-      rarity: 'common',
-      owned: true,
-      count: 3
-    },
-    {
-      id: 'card-2',
-      number: '#002',
-      name: '💼 工作日噩梦',
-      description: '周一早上的你',
-      rarity: 'common',
-      owned: true,
-      count: 5
-    },
-    {
-      id: 'card-3',
-      number: '#003',
-      name: '☕ 咖啡续命',
-      description: '靠咖啡撑过一天',
-      rarity: 'uncommon',
-      owned: true,
-      count: 2
-    },
-    {
-      id: 'card-4',
-      number: '#004',
-      name: '🌅 摸鱼达人',
-      description: '上班摸鱼的高手',
-      rarity: 'uncommon',
-      owned: false,
-      count: 0
-    },
-    {
-      id: 'card-5',
-      number: '#005',
-      name: '🏖️ 向往自由',
-      description: '梦想中的海滩',
-      rarity: 'rare',
-      owned: true,
-      count: 1
-    },
-    {
-      id: 'card-6',
-      number: '#006',
-      name: '🚀 说走就走',
-      description: '勇敢辞职的你',
-      rarity: 'rare',
-      owned: false,
-      count: 0
-    },
-    {
-      id: 'card-7',
-      number: '#007',
-      name: '🌟 新的开始',
-      description: '开启新的人生',
-      rarity: 'legendary',
-      owned: false,
-      count: 0
-    },
-    {
-      id: 'card-8',
-      number: '#008',
-      name: '🌈 自由翱翔',
-      description: '实现财务自由',
-      rarity: 'legendary',
-      owned: false,
-      count: 0
-    }
-  ];
+  const [currentPageCards, setCurrentPageCards] = useState<Card[]>([]);
   
   // 卡片数据已按顺序排列，可直接通过索引访问
   
@@ -131,7 +131,7 @@ export const GamesHub = () => {
         const updatedCollections = { ...cardCollections };
         
         // 为每个卡片确保有对应的拥有数量记录
-        cards.forEach(card => {
+        CARDS.forEach(card => {
           if (updatedCollections[card.number] === undefined) {
             updatedCollections[card.number] = 0;
           }
@@ -226,7 +226,7 @@ export const GamesHub = () => {
   // 下一页
   const nextPage = () => {
     setCurrentPage((prev) => {
-      const totalPages = Math.ceil(cards.length / cardsPerPage);
+      const totalPages = Math.ceil(CARDS.length / cardsPerPage);
       return (prev + 1) % totalPages;
     });
   };
@@ -234,7 +234,7 @@ export const GamesHub = () => {
   // 上一页
   const prevPage = () => {
     setCurrentPage((prev) => {
-      const totalPages = Math.ceil(cards.length / cardsPerPage);
+      const totalPages = Math.ceil(CARDS.length / cardsPerPage);
       return (prev - 1 + totalPages) % totalPages;
     });
   };
@@ -246,85 +246,11 @@ export const GamesHub = () => {
       const cardCollections = userData?.cardCollections || {};
       
       // 卡片数据 - 这里直接定义，避免依赖外部cards数组
-      const localCards: Card[] = [
-        {
-          id: 'card-1',
-          number: '#001',
-          name: '🏃‍♂️ 跑路新手',
-          description: '第一次想跑路的你',
-          rarity: 'common',
-          owned: true,
-          count: 3
-        },
-        {
-          id: 'card-2',
-          number: '#002',
-          name: '💼 工作日噩梦',
-          description: '周一早上的你',
-          rarity: 'common',
-          owned: true,
-          count: 5
-        },
-        {
-          id: 'card-3',
-          number: '#003',
-          name: '☕ 咖啡续命',
-          description: '靠咖啡撑过一天',
-          rarity: 'uncommon',
-          owned: true,
-          count: 2
-        },
-        {
-          id: 'card-4',
-          number: '#004',
-          name: '🌅 摸鱼达人',
-          description: '上班摸鱼的高手',
-          rarity: 'uncommon',
-          owned: false,
-          count: 0
-        },
-        {
-          id: 'card-5',
-          number: '#005',
-          name: '🏖️ 向往自由',
-          description: '梦想中的海滩',
-          rarity: 'rare',
-          owned: true,
-          count: 1
-        },
-        {
-          id: 'card-6',
-          number: '#006',
-          name: '🚀 说走就走',
-          description: '勇敢辞职的你',
-          rarity: 'rare',
-          owned: false,
-          count: 0
-        },
-        {
-          id: 'card-7',
-          number: '#007',
-          name: '🌟 新的开始',
-          description: '开启新的人生',
-          rarity: 'legendary',
-          owned: false,
-          count: 0
-        },
-        {
-          id: 'card-8',
-          number: '#008',
-          name: '🌈 自由翱翔',
-          description: '实现财务自由',
-          rarity: 'legendary',
-          owned: false,
-          count: 0
-        },
-      ];
       
       // 获取当前页的原始卡片
       const startIndex = currentPage * cardsPerPage;
       const endIndex = startIndex + cardsPerPage;
-      const currentCards = localCards.slice(startIndex, endIndex);
+      const currentCards = CARDS.slice(startIndex, endIndex);
       
       // 更新卡片的拥有状态和数量
       const updatedCards = currentCards.map(card => {
@@ -342,8 +268,8 @@ export const GamesHub = () => {
         filledCards.push({
           id: `empty-${filledCards.length + startIndex}`,
           number: '',
-          name: '',
-          description: '',
+          nameKey: '',
+          descKey: '',
           rarity: 'common' as const,
           owned: false,
           count: 0
@@ -355,6 +281,12 @@ export const GamesHub = () => {
     
     fetchCurrentPageCards();
   }, [currentPage, username]);
+  const rarityLabels = {
+    common: i18n.t('games.rarity_common'),
+    uncommon: i18n.t('games.rarity_uncommon'),
+    rare: i18n.t('games.rarity_rare'),
+    legendary: i18n.t('games.rarity_legendary'),
+  };
   return (
     <Layout username={username} onLogout={handleLogout}>
       <div className="games-hub">
@@ -599,7 +531,7 @@ export const GamesHub = () => {
                 fontSize: '0.9rem',
                 color: 'var(--text-secondary)'
               }}>
-                第 {currentPage + 1} 页 / 共 {Math.ceil(cards.length / cardsPerPage)} 页
+                {i18n.t('games.album_page_info', { current: currentPage + 1, total: Math.ceil(CARDS.length / cardsPerPage) })}
               </div>
               
               {/* 卡片网格展示区域 */}
@@ -612,7 +544,7 @@ export const GamesHub = () => {
               }}>
                 {currentPageCards.map((card) => {
                   // 检查是否为空白卡片
-                  const isEmptyCard = !card.name;
+                  const isEmptyCard = !card.nameKey;
                   
                   if (isEmptyCard) {
                     // 空白卡片只显示空白格子，保持布局一致性
@@ -668,7 +600,7 @@ export const GamesHub = () => {
                         marginBottom: '0.8rem',
                         color: card.owned ? 'var(--text-primary)' : '#9e9e9e'
                       }}>
-                        {card.name}
+                        {i18n.t(card.nameKey)}
                       </h3>
                       <p style={{
                         fontSize: '0.9rem',
@@ -677,7 +609,7 @@ export const GamesHub = () => {
                         maxWidth: '90%',
                         flex: 1
                       }}>
-                        {card.description}
+                        {i18n.t(card.descKey)}
                       </p>
                       <div style={{
                         fontSize: '0.75rem',
@@ -690,7 +622,7 @@ export const GamesHub = () => {
                                    card.rarity === 'uncommon' ? '#2196f3' :
                                    card.rarity === 'rare' ? '#9c27b0' : '#ff9800'
                       }}>
-                        {card.rarity.toUpperCase()}
+                        {rarityLabels[card.rarity]}
                       </div>
                       {card.owned && (
                         <div style={{
@@ -699,7 +631,7 @@ export const GamesHub = () => {
                           color: '#4caf50',
                           marginTop: '0.5rem'
                         }}>
-                          {card.count} 张
+                          {i18n.t('games.album_owned_count', { count: card.count })}
                         </div>
                       )}
                     </div>
@@ -724,7 +656,7 @@ export const GamesHub = () => {
                   color: 'white',
                   fontSize: '1rem'
                 }}>
-                  ← 上一页
+                  {i18n.t('games.album_prev')}
                 </button>
                 
                 <button onClick={nextPage} style={{
@@ -737,7 +669,7 @@ export const GamesHub = () => {
                   color: 'white',
                   fontSize: '1rem'
                 }}>
-                  下一页 →
+                  {i18n.t('games.album_next')}
                 </button>
               </div>
             </div>

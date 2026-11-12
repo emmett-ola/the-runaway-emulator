@@ -39,7 +39,50 @@
     <card_album>📚 集卡冊</card_album>
     <prev_card>上一張</prev_card>
     <next_card>下一張</next_card>
+    <card_1_name>🏃‍♂️ 跑路新手</card_1_name>
+    <card_1_desc>第一次想跑路的您</card_1_desc>
+    <card_2_name>💼 工作日噩夢</card_2_name>
+    <card_2_desc>週一早上的您</card_2_desc>
+    <card_3_name>☕ 咖啡續命</card_3_name>
+    <card_3_desc>靠咖啡撐過一天</card_3_desc>
+    <card_4_name>🌅 摸魚達人</card_4_name>
+    <card_4_desc>上班摸魚的高手</card_4_desc>
+    <card_5_name>🏖️ 嚮往自由</card_5_name>
+    <card_5_desc>夢想中的海灘</card_5_desc>
+    <card_6_name>🚀 說走就走</card_6_name>
+    <card_6_desc>勇敢辭職的您</card_6_desc>
+    <card_7_name>🌟 新的開始</card_7_name>
+    <card_7_desc>開啟新的人生</card_7_desc>
+    <card_8_name>🌈 自由翱翔</card_8_name>
+    <card_8_desc>實現財務自由</card_8_desc>
+    <rarity_common>普通</rarity_common>
+    <rarity_uncommon>精良</rarity_uncommon>
+    <rarity_rare>稀有</rarity_rare>
+    <rarity_legendary>傳說</rarity_legendary>
+    <album_page_info>第 {current} 頁 / 共 {total} 頁</album_page_info>
+    <album_owned_count>{count} 張</album_owned_count>
+    <album_prev>← 上一頁</album_prev>
+    <album_next>下一頁 →</album_next>
   </games>
+  <!-- Print view -->
+  <print>
+    <dialog_title>列印日曆</dialog_title>
+    <close>關閉</close>
+    <weekday_sun>日</weekday_sun>
+    <weekday_mon>一</weekday_mon>
+    <weekday_tue>二</weekday_tue>
+    <weekday_wed>三</weekday_wed>
+    <weekday_thu>四</weekday_thu>
+    <weekday_fri>五</weekday_fri>
+    <weekday_sat>六</weekday_sat>
+    <legend_less>少</legend_less>
+    <legend_more>多</legend_more>
+    <stats_total>跑路夢想總數：</stats_total>
+    <stats_month>本月：</stats_month>
+    <tip>💡 提示：在列印設定中開啟「背景圖形」以顯示顏色</tip>
+    <button_print>🖨️ 列印</button_print>
+    <button_cancel>取消</button_cancel>
+  </print>
   <!-- Dashboard -->
   <dashboard>
     <title>想要跑路嗎？</title>
@@ -129,6 +172,7 @@
   </navigation>
   <!-- Login -->
   <login>
+    <select_language>選擇語言</select_language>
     <title>🏃 跑路模擬器</title>
     <subtitle>記錄你的跑路夢想</subtitle>
     <register_title>🏃 註冊帳號</register_title>

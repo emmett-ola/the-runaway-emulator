@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { HitLog } from '../types';
 import { getSavedTimezone, timestampToDateString } from '../timezone';
+import { i18n } from '../i18n/i18n';
+import type { SupportedLanguage } from '../i18n/i18n';
 import './PrintCalendar.css';
+
+const LOCALE_TAGS: Record<SupportedLanguage, string> = {
+  en_us: 'en-US', zh_cn: 'zh-CN', zh_tw: 'zh-TW',
+};
 
 interface PrintCalendarProps {
   hits: HitLog[];
@@ -81,7 +87,8 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
     return 'intensity-4';
   };
 
-  const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const localeTag = LOCALE_TAGS[i18n.getLanguage()];
+  const monthName = currentMonth.toLocaleDateString(localeTag, { month: 'long', year: 'numeric' });
 
   const handlePrint = () => {
     window.print();
@@ -91,8 +98,8 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
     <div className="print-overlay" onClick={onClose}>
       <div className="print-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="print-dialog-header">
-          <h2>Print Calendar</h2>
-          <button onClick={onClose} className="print-close-btn" aria-label="Close">
+          <h2>{i18n.t('print.dialog_title')}</h2>
+          <button onClick={onClose} className="print-close-btn" aria-label={i18n.t('print.close')}>
             ✕
           </button>
         </div>
@@ -100,10 +107,10 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
         <div className="print-preview" ref={printRef}>
           <div className="print-content">
             <div className="print-header">
-              <h1 className="print-title">🏃 跑路模擬器</h1>
+              <h1 className="print-title">🏃 {i18n.t('dashboard.brand_title')}</h1>
               <div className="print-user-info">
                 <span className="print-username">{username}</span>
-                <span className="print-date">{new Date().toLocaleDateString('en-US', { 
+                <span className="print-date">{new Date().toLocaleDateString(localeTag, {
                   year: 'numeric', 
                   month: 'long', 
                   day: 'numeric' 
@@ -115,13 +122,13 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
               <h2 className="print-month-title">{monthName}</h2>
               
               <div className="print-calendar-weekdays">
-                <div className="print-weekday">Sun</div>
-                <div className="print-weekday">Mon</div>
-                <div className="print-weekday">Tue</div>
-                <div className="print-weekday">Wed</div>
-                <div className="print-weekday">Thu</div>
-                <div className="print-weekday">Fri</div>
-                <div className="print-weekday">Sat</div>
+                <div className="print-weekday">{i18n.t('print.weekday_sun')}</div>
+                <div className="print-weekday">{i18n.t('print.weekday_mon')}</div>
+                <div className="print-weekday">{i18n.t('print.weekday_tue')}</div>
+                <div className="print-weekday">{i18n.t('print.weekday_wed')}</div>
+                <div className="print-weekday">{i18n.t('print.weekday_thu')}</div>
+                <div className="print-weekday">{i18n.t('print.weekday_fri')}</div>
+                <div className="print-weekday">{i18n.t('print.weekday_sat')}</div>
               </div>
               
               <div className="print-calendar-grid">
@@ -141,22 +148,22 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
               </div>
               
               <div className="print-calendar-legend">
-                <span>Less</span>
+                <span>{i18n.t('print.legend_less')}</span>
                 <div className="print-legend-item intensity-0"></div>
                 <div className="print-legend-item intensity-1"></div>
                 <div className="print-legend-item intensity-2"></div>
                 <div className="print-legend-item intensity-3"></div>
                 <div className="print-legend-item intensity-4"></div>
-                <span>More</span>
+                <span>{i18n.t('print.legend_more')}</span>
               </div>
 
               <div className="print-stats">
                 <div className="print-stat-item">
-                  <span className="print-stat-label">Total Escape Dreams:</span>
+                  <span className="print-stat-label">{i18n.t('print.stats_total')}</span>
                   <span className="print-stat-value">{hits.length}</span>
                 </div>
                 <div className="print-stat-item">
-                  <span className="print-stat-label">This Month:</span>
+                  <span className="print-stat-label">{i18n.t('print.stats_month')}</span>
                   <span className="print-stat-value">
                     {days.filter(d => d !== null && d.count > 0).reduce((sum, d) => sum + d!.count, 0)}
                   </span>
@@ -168,14 +175,14 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
 
         <div className="print-dialog-actions">
           <div className="print-note">
-            💡 Tip: Enable "Background graphics" in print settings for colors
+            {i18n.t('print.tip')}
           </div>
           <div className="print-buttons">
             <button onClick={handlePrint} className="print-btn print-action-btn">
-              🖨️ Print
+              {i18n.t('print.button_print')}
             </button>
             <button onClick={onClose} className="cancel-btn print-action-btn">
-              Cancel
+              {i18n.t('print.button_cancel')}
             </button>
           </div>
         </div>

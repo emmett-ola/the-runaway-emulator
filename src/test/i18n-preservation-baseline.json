@@ -1,0 +1,38 @@
+{
+  "pin": "f80115f45395c13f95db703ecbd72f50c1eb4132",
+  "treeHashes": {
+    "en_us": "598fcff31e427cfe1661af77a251a1954bf973918ef4c409d1ecf0395d5ff7d3",
+    "zh_cn": "b154027f46d8c94d24867ea24f5b3fb9028e523aeb11688dcd65909e89c3b305",
+    "zh_tw": "a7ce19b44a3439cddeb17a09821a3e6e8e863d6ae981e0a94e3a215b29269b96"
+  },
+  "cards": [
+    { "id": "card-1", "number": "#001", "name": "🏃‍♂️ 跑路新手", "description": "第一次想跑路的你", "rarity": "common", "owned": true, "count": 3 },
+    { "id": "card-2", "number": "#002", "name": "💼 工作日噩梦", "description": "周一早上的你", "rarity": "common", "owned": true, "count": 5 },
+    { "id": "card-3", "number": "#003", "name": "☕ 咖啡续命", "description": "靠咖啡撑过一天", "rarity": "uncommon", "owned": true, "count": 2 },
+    { "id": "card-4", "number": "#004", "name": "🌅 摸鱼达人", "description": "上班摸鱼的高手", "rarity": "uncommon", "owned": false, "count": 0 },
+    { "id": "card-5", "number": "#005", "name": "🏖️ 向往自由", "description": "梦想中的海滩", "rarity": "rare", "owned": true, "count": 1 },
+    { "id": "card-6", "number": "#006", "name": "🚀 说走就走", "description": "勇敢辞职的你", "rarity": "rare", "owned": false, "count": 0 },
+    { "id": "card-7", "number": "#007", "name": "🌟 新的开始", "description": "开启新的人生", "rarity": "legendary", "owned": false, "count": 0 },
+    { "id": "card-8", "number": "#008", "name": "🌈 自由翱翔", "description": "实现财务自由", "rarity": "legendary", "owned": false, "count": 0 }
+  ],
+  "jsxHashes": {
+    "src/components/Navigation.tsx": "259bcb3c24cd2a7531805049edb24716bce4f84f030f96c8266ebbc0542daf15",
+    "src/components/PrintCalendar.tsx": "71139206aa383d55d28fd2701c8eb5c8bb490e3ae4bd59c39363fe9aae586d6d",
+    "src/pages/games/GamesHub.tsx": "136f92983b70d2f00aa41de19343e534f00412d314f8feff1e43de8a5e7cafc1",
+    "src/components/Login.tsx": "d6cd82aad7b97476a9794dd87df3eda54bc2ec2f4afeb08f97d196af053bd42b"
+  },
+  "sceneHashes": {
+    "src/i18n/en_us.xml": "b6e3967cffeeab3680c4165ff5757a80ed4c6ef4fb9d7f8707dbf1ee9326111f",
+    "src/i18n/translations/en_us.ts": "a85b5377b4fcc535207df77a83a2bed6513523b70448cbc09bc42e61f7a83900",
+    "src/i18n/zh_cn.xml": "5dab2957d7fcaef49a6406d15c76f38fe0594668fefea20ebbfc45b37d0c2a7a",
+    "src/i18n/translations/zh_cn.ts": "7ca2698a4cec10ef154082657b82cab787e2088f5f83118c1d560071a75441ee",
+    "src/i18n/zh_tw.xml": "7a77ff74893c0430b77a813bae8e47bb9c6e561e03260d59f78f2887e8832606",
+    "src/i18n/translations/zh_tw.ts": "ee25ce6d4c77fdbde692507756edeb7b1b7a70c60d39cfa44c89ac9a1e56ad8d"
+  },
+  "zhCnChrome": {
+    "pages": ["第 1 页 / 共 2 页", "第 2 页 / 共 2 页"],
+    "counts": ["3 张", "5 张", "2 张", "1 张"],
+    "buttons": ["✕", "← 上一页", "下一页 →"],
+    "menu": ["个人资料", "关于我们", "退出登录"]
+  }
+}
