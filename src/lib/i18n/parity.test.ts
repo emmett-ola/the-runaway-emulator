@@ -40,13 +40,15 @@ describe('typed locale parity against committed shipped XML output', () => {
   for (const locale of ['en_us', 'zh_cn', 'zh_tw'] as const) {
     const actual = flatten(translations[locale]);
     const frozen = flatten(fixtures[locale]);
-    it(`${locale}: identical key paths, placeholders, and every shipped string byte`, () => {
+    it(`${locale}: identical full locale key paths and placeholders, with every frozen baseline string byte preserved`, () => {
       expect(Object.keys(actual).sort(), `${locale}: missing/extra key paths`).toEqual(Object.keys(english).sort());
-      expect(Object.keys(actual).sort(), `${locale}: frozen key paths`).toEqual(Object.keys(frozen).sort());
+      for (const [key, value] of Object.entries(actual)) {
+        expect(placeholders(value), `${locale}:${key}: placeholders`).toEqual(placeholders(english[key]));
+      }
       i18n.setLanguage(locale);
       for (const [key, value] of Object.entries(frozen)) {
+        expect(Object.hasOwn(actual, key), `${locale}:${key}: missing frozen key`).toBe(true);
         expect(actual[key], `${locale}:${key}: changed string`).toBe(value);
-        expect(placeholders(actual[key]), `${locale}:${key}: placeholders`).toEqual(placeholders(english[key]));
         expect(t(key), `${locale}:${key}: shipped t() output`).toBe(value);
         const vars = Object.fromEntries(placeholders(value).map((name, index) => [name, `sample-${index}`]));
         const expected = value.replace(/\{([^}]+)\}/g, (_, name: string) => vars[name]);

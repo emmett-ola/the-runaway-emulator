@@ -4,6 +4,7 @@ import { Layout } from '../components/Layout';
 import { loadUserData, saveUserData } from '../storage';
 import { getGravatarUrl, formatMemberSince } from '../utils/gravatar';
 import type { UserData } from '../types';
+import { i18n } from '../i18n/i18n';
 import './Profile.css';
 
 export const Profile = () => {
@@ -78,7 +79,7 @@ export const Profile = () => {
     <Layout username={username} onLogout={handleLogout}>
       <div className="profile-page">
         <div className="profile-container">
-          <h1 className="profile-title">👤 User Profile</h1>
+          <h1 className="profile-title">👤 {i18n.t('profile.title')}</h1>
 
           <div className="profile-card">
             <div className="profile-header">
@@ -96,12 +97,12 @@ export const Profile = () => {
                   <div className="profile-stat">
                     <span className="stat-icon">🏃</span>
                     <span className="stat-value">{userData.hits.length}</span>
-                    <span className="stat-label">Escape Dreams</span>
+                    <span className="stat-label">{i18n.t('profile.escape_dreams')}</span>
                   </div>
                   <div className="profile-stat">
                     <span className="stat-icon">📅</span>
                     <span className="stat-value">{memberSince}</span>
-                    <span className="stat-label">Member For</span>
+                    <span className="stat-label">{i18n.t('profile.member_for')}</span>
                   </div>
                 </div>
               </div>
@@ -111,7 +112,7 @@ export const Profile = () => {
               <div className="profile-field">
                 <label className="field-label">
                   <span className="field-icon">📧</span>
-                  Email
+                  {i18n.t('profile.email')}
                 </label>
                 {isEditing ? (
                   <div className="field-edit">
@@ -140,10 +141,10 @@ export const Profile = () => {
                 ) : (
                   <div className="field-display">
                     <span className="field-value">
-                      {userData.profile?.email || 'Not set'}
+                      {userData.profile?.email || i18n.t('profile.not_set')}
                     </span>
                     <button onClick={() => setIsEditing(true)} className="btn-edit">
-                      Edit
+                      {i18n.t('profile.edit')}
                     </button>
                   </div>
                 )}
@@ -152,7 +153,7 @@ export const Profile = () => {
               <div className="profile-field">
                 <label className="field-label">
                   <span className="field-icon">📆</span>
-                  Joined
+                  {i18n.t('profile.joined')}
                 </label>
                 <div className="field-display">
                   <span className="field-value">{joinDate}</span>
@@ -162,7 +163,7 @@ export const Profile = () => {
               <div className="profile-field">
                 <label className="field-label">
                   <span className="field-icon">🆔</span>
-                  Username
+                  {i18n.t('profile.username')}
                 </label>
                 <div className="field-display">
                   <span className="field-value">{username}</span>

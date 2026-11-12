@@ -1,6 +1,16 @@
 import type { Translations } from './en_us';
 
 export const zh_cn = {
+  "profile": {
+    "title": "个人资料",
+    "escape_dreams": "跑路梦想",
+    "member_for": "加入时长",
+    "email": "邮箱",
+    "not_set": "未设置",
+    "edit": "编辑",
+    "joined": "加入日期",
+    "username": "用户名"
+  },
   "storage": {
     "title": "☁️ 存储",
     "description": "管理您的跑路数据",

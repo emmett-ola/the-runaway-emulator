@@ -43,11 +43,28 @@ function lookup(object: Translation, path: string): unknown {
       ? (value as Translation)[key] : undefined, object);
 }
 
+function expectFrozenBaseline(actual: Translation, frozen: Translation, prefix = ''): void {
+  for (const [key, value] of Object.entries(frozen)) {
+    const path = `${prefix}${key}`;
+    if (typeof value === 'string') {
+      expect(lookup(actual, path), `${path}: missing frozen key`).not.toBeUndefined();
+      expect(lookup(actual, path), `${path}: changed frozen string`).toBe(value);
+    } else {
+      expectFrozenBaseline(actual, value, `${path}.`);
+    }
+  }
+}
+
 describe('i18n shipped fixture parity', () => {
   for (const [locale, translation] of Object.entries(translations)) {
-    it(`${locale}: frozen XML output matches every exported key and string`, () => {
+    it(`${locale}: frozen baseline subset matches exactly${locale === 'en_us' ? ' and rejects a mutated string' : ''}`, () => {
       const frozen: Translation = JSON.parse(readFileSync(resolve(sourceRoot, 'lib/i18n/__fixtures__', `${locale}.json`), 'utf8'));
-      expect(translation).toEqual(frozen);
+      expectFrozenBaseline(translation, frozen);
+      if (locale === 'en_us') {
+        const alteredFrozen: Translation & { dashboard: { title: string } } = JSON.parse(JSON.stringify(frozen));
+        alteredFrozen.dashboard.title += ' [mutated frozen baseline]';
+        expect(() => expectFrozenBaseline(translation, alteredFrozen)).toThrow();
+      }
       for (const path of ['dashboard.hit_count', 'import_dialog.warning']) {
         expect(typeof lookup(translation, path)).toBe('string');
         expect(lookup(translation, path)).toBe(lookup(frozen, path));

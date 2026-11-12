@@ -1,4 +1,14 @@
 export const en_us = {
+  "profile": {
+    "title": "User Profile",
+    "escape_dreams": "Escape Dreams",
+    "member_for": "Member For",
+    "email": "Email",
+    "not_set": "Not set",
+    "edit": "Edit",
+    "joined": "Joined",
+    "username": "Username"
+  },
   "storage": {
     "title": "☁️ Storage",
     "description": "Manage your runaway data",
