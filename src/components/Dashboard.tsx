@@ -31,7 +31,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const [timezone, setTimezone] = useState<string>(() => getSavedTimezone());
   const [currentTime, setCurrentTime] = useState(new Date());
   const [gameSettings, setGameSettings] = useState<{ forkInTheRoadEnabled?: boolean }>({ forkInTheRoadEnabled: false });
-  const [correctButtonIndex, setCorrectButtonIndex] = useState(0);
+  const [correctButtonIndex, setCorrectButtonIndex] = useState(() => Math.floor(Math.random() * 3));
   const [sceneOpen, setSceneOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([null, null, null]);
@@ -108,13 +108,6 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     
     fetchGameSettings();
   }, [username, userData]);
-
-  // Set random correct button when game settings change
-  useEffect(() => {
-    if (gameSettings.forkInTheRoadEnabled) {
-      setCorrectButtonIndex(Math.floor(Math.random() * 3));
-    }
-  }, [gameSettings.forkInTheRoadEnabled]);
 
   const handleHit = (buttonIndex?: number) => {
     if (isAnimating) return;
