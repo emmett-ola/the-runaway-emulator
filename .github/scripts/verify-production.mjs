@@ -52,10 +52,14 @@ export function references(text) {
   return found;
 }
 
-export async function getBytes(url, fetcher = fetch) {
+export async function getBytes(url, fetcher = fetch, token) {
+  const headers = { 'cache-control': 'no-cache', 'accept-encoding': 'identity' };
+  if (token) {
+    if (new URL(url).origin !== API) throw new Error('Authorization is restricted to api.vercel.com');
+    headers.authorization = `Bearer ${token}`;
+  }
   const response = await fetcher(url, {
-    redirect: 'error', signal: AbortSignal.timeout(10000),
-    headers: { 'cache-control': 'no-cache', 'accept-encoding': 'identity' },
+    redirect: 'error', signal: AbortSignal.timeout(10000), headers,
   });
   if (!response.ok) throw new Error(`Anonymous HTTP ${response.status}: ${url}`);
   const chunks = [];
@@ -68,13 +72,15 @@ export async function getBytes(url, fetcher = fetch) {
   return Buffer.concat(chunks);
 }
 
-export async function deploymentMetadata(fetcher = fetch) {
+export async function deploymentMetadata(fetcher = fetch, token, expectedSha) {
   let deployment;
   try {
-    deployment = JSON.parse((await getBytes(`${API}/v13/deployments/runaway.macacloud.com`, fetcher)).toString());
+    deployment = JSON.parse((await getBytes(`${API}/v13/deployments/runaway.macacloud.com`, fetcher, token)).toString());
   } catch (error) {
+    if (token) throw new Error('Authenticated deployment identity unavailable; failing closed.');
     throw new Error(`Deployment identity unavailable via anonymous HTTP. No known public metadata route exists for this SPA; Vercel API normally requires authentication. Cannot prove deployment ID or aliases; failing closed. ${error.message}`);
   }
+  if (expectedSha !== undefined && deployment?.gitSource?.sha !== expectedSha) throw new Error('Deployment gitSource.sha does not match EXPECTED_SHA');
   const id = deployment.id ?? deployment.uid;
   if (typeof id !== 'string' || !/^dpl_[A-Za-z0-9]+$/.test(id)) throw new Error('Missing real deployment ID (request IDs are not deployment IDs)');
   if (typeof deployment.url !== 'string' || !/^[a-zA-Z0-9.-]+\.vercel\.app$/.test(deployment.url)) throw new Error('Missing immutable deployment hostname');
@@ -83,7 +89,7 @@ export async function deploymentMetadata(fetcher = fetch) {
   let complete = false;
   for (let page = 0; page < 10; page++) {
     const suffix = cursor ? `?until=${encodeURIComponent(cursor)}` : '';
-    const data = JSON.parse((await getBytes(`${API}/v2/deployments/${id}/aliases${suffix}`, fetcher)).toString());
+    const data = JSON.parse((await getBytes(`${API}/v2/deployments/${id}/aliases${suffix}`, fetcher, token)).toString());
     if (!Array.isArray(data.aliases)) throw new Error('Alias list is unavailable or malformed');
     for (const alias of data.aliases) {
       if (!alias || typeof alias.alias !== 'string') throw new Error('Malformed alias entry');
@@ -112,13 +118,20 @@ export async function compareFiles(files, origin, fetcher = fetch) {
   }
 }
 
-export async function verifyAttempt(files, fetcher = fetch) {
-  // Perform byte checks even if metadata is unavailable, but never call them a
-  // proof of source SHA: different commits can produce identical static output.
+export async function verifyAttempt(files, fetcher = fetch, options) {
+  // Keep the two-argument helper's strict metadata contract for existing callers.
+  // Production passes explicit options: bytes always run, identity needs a token.
   await compareFiles(files, PRODUCTION, fetcher);
-  const before = await deploymentMetadata(fetcher);
+  if (options && !options.token) {
+    console.log('SKIPPED deployment metadata, ID/aliases and gitSource.sha checks: VERCEL_TOKEN is absent. Production bytes/reachability verified; source identity is not proven.');
+    return;
+  }
+  const token = options?.token;
+  const sha = options?.expectedSha;
+  if (options && (!sha || !/^[0-9a-f]{40}$/.test(sha))) throw new Error('EXPECTED_SHA must be the exact workflow commit');
+  const before = await deploymentMetadata(fetcher, token, sha);
   await compareFiles(files, `https://${before.url}`, fetcher);
-  const after = await deploymentMetadata(fetcher);
+  const after = await deploymentMetadata(fetcher, token, sha);
   if (before.id !== after.id) throw new Error('Production deployment changed during verification');
   console.log(`Verified deployment ${after.id}; aliases=${JSON.stringify(after.aliases)}`);
 }
@@ -129,10 +142,11 @@ export async function main(root = process.argv[2]) {
   if (!sha || !/^[0-9a-f]{40}$/.test(sha)) throw new Error('EXPECTED_SHA must be the exact workflow commit');
   if ((await readFile(path.join(root, 'build-sha.txt'), 'utf8')).trim() !== sha) throw new Error('Artifact SHA does not match workflow commit');
   const files = await inventory(path.join(root, 'dist'));
-  console.log(`Artifact commit=${sha}; comparing ${files.size} shell/JS/CSS files; source SHA metadata is not anonymously available.`);
+  console.log(`Artifact commit=${sha}; comparing ${files.size} shell/JS/CSS files; deployment identity checks require VERCEL_TOKEN.`);
+  const options = { token: process.env.VERCEL_TOKEN, expectedSha: sha };
   const attempts = 10;
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    try { await verifyAttempt(files); return; }
+    try { await verifyAttempt(files, fetch, options); return; }
     catch (error) {
       console.error(`Attempt ${attempt}/${attempts}: ${error.message}`);
       if (attempt === attempts) throw new Error(`Production verification exhausted bounded retries: ${error.message}`);

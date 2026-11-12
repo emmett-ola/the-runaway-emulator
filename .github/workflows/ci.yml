@@ -63,6 +63,7 @@ jobs:
       - name: Verify production bytes and anonymous deployment identity
         env:
           EXPECTED_SHA: ${{ github.sha }}
-        # No deploy, CLI, token, or secret. Anonymous Vercel metadata may be
-        # unavailable (401/403); that is an explicit failure, never a green claim.
+        # No deploy or CLI. Token-free runs verify production bytes/reachability
+        # only; deployment ID/aliases and source SHA are explicitly SKIPPED.
+        # Identity checks also run if VERCEL_TOKEN is provided by the environment.
         run: node .github/scripts/verify-production.mjs verified-build
