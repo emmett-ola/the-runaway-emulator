@@ -1,5 +1,6 @@
 import type { UserData } from './types';
 import { readWholeMap, writeWholeMap, writeRecord } from './lib/storage';
+import { readIdentityCache, writeIdentityCache, removeIdentityCache } from './lib/storage/preferences';
 
 export type AuthStatus = 'logged_out' | 'logging_in' | 'logged_in' | 'registering';
 
@@ -18,15 +19,12 @@ export type AuthContextType = {
   token: string | null;
 };
 
-const TOKEN_STORAGE_KEY = 'runawaylog-token';
-const USER_STORAGE_KEY = 'runawaylog-current-user';
-
 /**
  * Save authentication token to localStorage
  */
 export const saveToken = (token: string, expiresAt: number): void => {
   try {
-    localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({ token, expiresAt }));
+    writeIdentityCache('token', JSON.stringify({ token, expiresAt }));
   } catch (error) {
     console.error('Error saving token:', error);
   }
@@ -37,14 +35,14 @@ export const saveToken = (token: string, expiresAt: number): void => {
  */
 export const loadToken = (): string | null => {
   try {
-    const tokenData = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const tokenData = readIdentityCache('token');
     if (!tokenData) return null;
     
     const { token, expiresAt } = JSON.parse(tokenData);
     
     // Check if token is expired
     if (Date.now() > expiresAt) {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      removeIdentityCache('token');
       return null;
     }
     
@@ -60,8 +58,8 @@ export const loadToken = (): string | null => {
  */
 export const removeToken = (): void => {
   try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    removeIdentityCache('token');
+    removeIdentityCache('currentUser');
   } catch (error) {
     console.error('Error removing token:', error);
   }
@@ -72,7 +70,7 @@ export const removeToken = (): void => {
  */
 export const saveCurrentUser = (userData: UserData): void => {
   try {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+    writeIdentityCache('currentUser', JSON.stringify(userData));
   } catch (error) {
     console.error('Error saving current user:', error);
   }
@@ -83,7 +81,7 @@ export const saveCurrentUser = (userData: UserData): void => {
  */
 export const loadCurrentUser = (): UserData | null => {
   try {
-    const userData = localStorage.getItem(USER_STORAGE_KEY);
+    const userData = readIdentityCache('currentUser');
     return userData ? JSON.parse(userData) : null;
   } catch (error) {
     console.error('Error loading current user:', error);
@@ -125,9 +123,9 @@ const hashPassword = (password: string): string => {
 const saveUserCredentials = (username: string, password: string): void => {
   try {
     const hashedPassword = hashPassword(password);
-    const credentials = JSON.parse(localStorage.getItem('runawaylog-credentials') || '{}');
+    const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
     credentials[username] = hashedPassword;
-    localStorage.setItem('runawaylog-credentials', JSON.stringify(credentials));
+    writeIdentityCache('credentials', JSON.stringify(credentials));
   } catch (error) {
     console.error('Error saving user credentials:', error);
   }
@@ -138,7 +136,7 @@ const saveUserCredentials = (username: string, password: string): void => {
  */
 const loadUserCredentials = (username: string): string | null => {
   try {
-    const credentials = JSON.parse(localStorage.getItem('runawaylog-credentials') || '{}');
+    const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
     return credentials[username] || null;
   } catch (error) {
     console.error('Error loading user credentials:', error);
@@ -219,7 +217,7 @@ export const register = async (username: string, password: string, email?: strin
   await new Promise(resolve => setTimeout(resolve, 500));
   
   // Check if username already exists
-  const credentials = JSON.parse(localStorage.getItem('runawaylog-credentials') || '{}');
+  const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
   if (credentials[username]) {
     throw new Error('Username already exists');
   }

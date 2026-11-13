@@ -1,9 +1,9 @@
+import { getAppearance, setAppearance } from './lib/storage/preferences';
+
 export type Theme = 'light' | 'dark';
 
-const THEME_KEY = 'app-theme';
-
 export const getTheme = (): Theme => {
-  const stored = localStorage.getItem(THEME_KEY);
+  const stored = getAppearance();
   if (stored === 'dark' || stored === 'light') {
     return stored;
   }
@@ -17,7 +17,7 @@ export const getTheme = (): Theme => {
 };
 
 export const setTheme = (theme: Theme): void => {
-  localStorage.setItem(THEME_KEY, theme);
+  setAppearance(theme);
   applyTheme(theme);
 };
 

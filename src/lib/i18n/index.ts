@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { getLanguagePreference, setLanguagePreference } from '../storage/preferences';
 import { en_us } from './locales/en_us';
 import { zh_cn } from './locales/zh_cn';
 import { zh_tw } from './locales/zh_tw';
@@ -12,10 +13,9 @@ class I18n {
   private currentLanguage: SupportedLanguage = 'en_us';
   private translations: Record<SupportedLanguage, Translations> = { en_us, zh_cn, zh_tw };
   private listeners: Set<LanguageChangeCallback> = new Set();
-  private readonly LANGUAGE_KEY = 'app-language';
 
   constructor() {
-    const savedLang = localStorage.getItem(this.LANGUAGE_KEY);
+    const savedLang = getLanguagePreference();
     if (savedLang && this.isSupportedLanguage(savedLang)) {
       this.currentLanguage = savedLang;
       return;
@@ -52,7 +52,7 @@ class I18n {
     }
     if (this.currentLanguage !== normalizedLang) {
       this.currentLanguage = normalizedLang;
-      localStorage.setItem(this.LANGUAGE_KEY, normalizedLang);
+      setLanguagePreference(normalizedLang);
       this.listeners.forEach(callback => {
         try {
           callback();

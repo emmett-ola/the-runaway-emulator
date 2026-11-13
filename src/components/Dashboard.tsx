@@ -3,14 +3,12 @@ import { animate } from 'animejs';
 import type { UserData } from '../types';
 import { addHit, loadUserData, saveUserData } from '../storage';
 import { getRandomQuote } from '../quotes';
-import { exportUserData, importUserData } from '../exportImport';
-import { getSavedTimezone, saveTimezone } from '../timezone';
-import { setTheme } from '../darkMode';
+import { exportUserData, importUserData, combineImportedHits, SettingsMenu } from '../features/settings';
+import { getSavedTimezone } from '../timezone';
 import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
-import { PrintCalendar } from './PrintCalendar';
+import { PrintCalendar } from '../features/print';
 import { RunScene } from './RunScene';
-import { SettingsMenu } from './SettingsMenu';
 import { Statistics } from './Statistics';
 import { i18n } from '../i18n/i18n';
 import './Dashboard.css';
@@ -26,6 +24,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const [isAnimating, setIsAnimating] = useState(false);
   const [quote, setQuote] = useState<string>(() => getRandomQuote());
   const [importDialog, setImportDialog] = useState<{ show: boolean; data: UserData | null }>({ show: false, data: null });
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timezone, setTimezone] = useState<string>(() => getSavedTimezone());
@@ -357,6 +356,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
 
     try {
       const importedData = await importUserData(file);
+      setReplaceConfirmed(false);
       setImportDialog({ show: true, data: importedData });
     } catch (error) {
       alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
@@ -371,41 +371,33 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const handleImportMerge = () => {
     if (!importDialog.data) return;
     
-    const existingIds = new Set(userData.hits.map(h => h.id));
-    const newHits = importDialog.data.hits.filter(h => !existingIds.has(h.id));
+    const hits = combineImportedHits(userData.hits, importDialog.data.hits);
+    const newHitCount = hits.length - userData.hits.length;
     const mergedData = {
-      username: username, // Keep current username
-      hits: [...userData.hits, ...newHits].sort((a, b) => a.timestamp - b.timestamp),
+      ...userData,
+      username,
+      hits: hits.sort((a, b) => a.timestamp - b.timestamp),
     };
     setUserData(mergedData);
     saveUserData(mergedData);
     
-    // Apply imported settings if available
-    if (importDialog.data.settings) {
-      applyImportedSettings(importDialog.data.settings);
-    }
-    
     setImportDialog({ show: false, data: null });
-    alert(i18n.t('errors.import_merged', { count: newHits.length }));
+    alert(i18n.t('errors.import_merged', { count: newHitCount }));
     
     // Refresh page to apply all settings
     window.location.reload();
   };
 
   const handleImportReplace = () => {
-    if (!importDialog.data) return;
+    if (!importDialog.data || !replaceConfirmed) return;
     
     const replacedData = {
-      username: username, // Keep current username
+      ...userData,
+      username,
       hits: importDialog.data.hits,
     };
     setUserData(replacedData);
     saveUserData(replacedData);
-    
-    // Apply imported settings if available
-    if (importDialog.data.settings) {
-      applyImportedSettings(importDialog.data.settings);
-    }
     
     setImportDialog({ show: false, data: null });
     alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
@@ -430,18 +422,6 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     const trigger = sceneTriggerRef.current;
     if (trigger) {
       trigger.focus();
-    }
-  };
-
-  const applyImportedSettings = (settings: NonNullable<UserData['settings']>) => {
-    if (settings.timezone) {
-      saveTimezone(settings.timezone);
-    }
-    if (settings.theme) {
-      localStorage.setItem('calendar-theme', settings.theme);
-    }
-    if (settings.darkMode) {
-      setTheme(settings.darkMode);
     }
   };
 
@@ -577,11 +557,15 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
                 <strong>Replace:</strong> {i18n.t('import_dialog.replace')}
               </p>
             </div>
+            <label className="import-replace-confirmation">
+              <input type="checkbox" checked={replaceConfirmed} onChange={event => setReplaceConfirmed(event.target.checked)} />
+              {i18n.t('import_dialog.replace')}
+            </label>
             <div className="import-dialog-actions">
               <button onClick={handleImportMerge} className="import-dialog-btn merge-btn">
                 {i18n.t('import_dialog.merge_button')}
               </button>
-              <button onClick={handleImportReplace} className="import-dialog-btn replace-btn">
+              <button onClick={handleImportReplace} disabled={!replaceConfirmed} className="import-dialog-btn replace-btn">
                 {i18n.t('import_dialog.replace_button')}
               </button>
               <button onClick={handleImportCancel} className="import-dialog-btn cancel-btn">

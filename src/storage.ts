@@ -1,10 +1,9 @@
 import type { UserData, HitLog } from './types';
 import { getCurrentTimestamp, timestampToDateString, getSavedTimezone } from './timezone';
-import { loadToken } from './auth';
+import { getStorageMode, setStorageMode, type StorageMode } from './lib/storage/preferences';
+export { getStorageMode, setStorageMode } from './lib/storage/preferences';
+export type { StorageMode } from './lib/storage/preferences';
 import { readRecord, writeRecord, deleteRecord } from './lib/storage';
-
-// Storage types
-export type StorageMode = 'local' | 'cloud';
 
 // Storage interface
 export interface StorageAdapter {
@@ -14,35 +13,6 @@ export interface StorageAdapter {
   syncData(username: string): Promise<void>;
   deleteUserData(username: string): Promise<void>;
 }
-
-const STORAGE_MODE_KEY = 'runawaylog-storage-mode';
-
-// Mock API URLs - these would be replaced with actual API endpoints in production
-// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-
-/**
- * Get the current storage mode from localStorage
- */
-export const getStorageMode = (): StorageMode => {
-  try {
-    const mode = localStorage.getItem(STORAGE_MODE_KEY) as StorageMode;
-    return mode || 'local';
-  } catch (error) {
-    console.error('Error getting storage mode:', error);
-    return 'local';
-  }
-};
-
-/**
- * Save the storage mode to localStorage
- */
-export const setStorageMode = (mode: StorageMode): void => {
-  try {
-    localStorage.setItem(STORAGE_MODE_KEY, mode);
-  } catch (error) {
-    console.error('Error setting storage mode:', error);
-  }
-};
 
 /**
  * LocalStorage adapter implementation
@@ -125,7 +95,7 @@ export class LocalStorageAdapter implements StorageAdapter {
     }
   }
 
-  async syncData(_username: string): Promise<void> {
+  async syncData(): Promise<void> {
     // No-op for local storage
     return;
   }
@@ -139,112 +109,13 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
-/**
- * CloudStorage adapter implementation
- */
-export class CloudStorageAdapter implements StorageAdapter {
-  // Token will be used when actual API calls are implemented
-  constructor() {
-    // Load token for future use when API calls are implemented
-    loadToken();
-  }
+export class CloudStorageAdapter extends LocalStorageAdapter {}
 
-  async loadUserData(username: string): Promise<UserData | null> {
-    try {
-      // For now, we'll use a mock implementation
-      // In production, this would make an API call to the backend
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Mock response - replace with actual API response
-      return readRecord(username);
-    } catch (error) {
-      console.error('Error loading user data from cloud storage:', error);
-      return null;
-    }
-  }
-
-  async saveUserData(userData: UserData): Promise<void> {
-    try {
-      // For now, we'll use a mock implementation
-      // In production, this would make an API call to the backend
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Also save to local storage as backup
-      const localAdapter = new LocalStorageAdapter();
-      await localAdapter.saveUserData(userData);
-    } catch (error) {
-      console.error('Error saving user data to cloud storage:', error);
-      throw error;
-    }
-  }
-
-  async addHit(username: string): Promise<HitLog | null> {
-    try {
-      // For now, we'll use a mock implementation
-      // In production, this would make an API call to the backend
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Also add to local storage for offline support
-      const localAdapter = new LocalStorageAdapter();
-      return await localAdapter.addHit(username);
-    } catch (error) {
-      console.error('Error adding hit to cloud storage:', error);
-      return null;
-    }
-  }
-
-  async syncData(_username: string): Promise<void> {
-    try {
-      // For now, we'll use a mock implementation
-      // In production, this would handle data synchronization between local and cloud
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log('Data synced successfully');
-    } catch (error) {
-      console.error('Error syncing data:', error);
-      throw error;
-    }
-  }
-
-  async deleteUserData(username: string): Promise<void> {
-    try {
-      // For now, we'll use a mock implementation
-      // In production, this would make an API call to the backend
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Also delete from local storage
-      const localAdapter = new LocalStorageAdapter();
-      await localAdapter.deleteUserData(username);
-    } catch (error) {
-      console.error('Error deleting user data from cloud storage:', error);
-      throw error;
-    }
-  }
-}
-
-/**
- * Storage factory to create the appropriate storage adapter based on the current mode
- */
+/** Cloud remains unavailable even when an old caller requests it explicitly. */
 export const createStorageAdapter = (mode?: StorageMode): StorageAdapter => {
-  const storageMode = mode || getStorageMode();
-  
-  switch (storageMode) {
-    case 'cloud':
-      return new CloudStorageAdapter();
-    case 'local':
-    default:
-      return new LocalStorageAdapter();
-  }
+  if (mode) setStorageMode(mode);
+  else getStorageMode();
+  return new LocalStorageAdapter();
 };
 
 // Export default storage adapter instance

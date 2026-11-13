@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { animate } from 'animejs';
-import { i18n } from '../i18n/i18n';
+import { i18n, type SupportedLanguage } from '../i18n/i18n';
 import { login } from '../auth';
 import './Login.css';
 
@@ -43,10 +43,10 @@ export const Login = ({ onLogin }: LoginProps) => {
       await login(username.trim(), '');
       
       onLogin(username.trim());
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle specific error messages
       let errorMessage = '';
-      if (err.message === 'Invalid username or password') {
+      if (typeof err === 'object' && err !== null && 'message' in err && err.message === 'Invalid username or password') {
         errorMessage = i18n.t('login.error.invalid_credentials');
       } else {
         errorMessage = i18n.t('login.error.login_failed');
@@ -59,7 +59,7 @@ export const Login = ({ onLogin }: LoginProps) => {
   };
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLanguage = e.target.value as any;
+    const newLanguage = e.target.value as SupportedLanguage;
     setSelectedLanguage(newLanguage);
     i18n.setLanguage(newLanguage);
   };

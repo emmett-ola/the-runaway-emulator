@@ -1,4 +1,4 @@
-const TIMEZONE_KEY = 'runawaylog-timezone';
+import { getTimezonePreference, setTimezonePreference } from './lib/storage/preferences';
 
 // Get list of common timezones
 export const getTimezones = (): string[] => {
@@ -54,7 +54,7 @@ export const getBrowserTimezone = (): string => {
 // Get saved timezone or default to browser timezone
 export const getSavedTimezone = (): string => {
   try {
-    const saved = localStorage.getItem(TIMEZONE_KEY);
+    const saved = getTimezonePreference();
     if (saved) {
       return saved;
     }
@@ -71,7 +71,7 @@ export const getSavedTimezone = (): string => {
 // Save timezone to localStorage
 export const saveTimezone = (timezone: string): void => {
   try {
-    localStorage.setItem(TIMEZONE_KEY, timezone);
+    setTimezonePreference(timezone);
   } catch (error) {
     console.error('Error saving timezone:', error);
   }
