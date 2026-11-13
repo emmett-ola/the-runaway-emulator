@@ -15,7 +15,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-11-13T01:00:00Z'));
   vi.spyOn(Math, 'random').mockReturnValue(0.5);
-  writeRecord({ username: 'runner', hits: [], profile: { registrationDate: 1 } });
+  writeRecord({ username: 'runner', hits: [], registeredAt: 1, profile: {} });
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 const settle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(900); }); };
@@ -51,7 +51,7 @@ describe('run-owned invariants', () => {
   });
 
   it('wrong fork and boom neither count nor consume the scene; all fork controls are reachable and the successful trigger regains focus', async () => {
-    writeRecord({ username: 'runner', hits: [], profile: { registrationDate: 1 }, settings: { games: { forkInTheRoadEnabled: true } } });
+    writeRecord({ username: 'runner', hits: [], registeredAt: 1, profile: {}, settings: { games: { forkInTheRoadEnabled: true } } });
     render(<SceneSession><Dashboard username="runner" onLogout={() => {}} showHeader={false} /></SceneSession>);
     await act(async () => {});
     expect(run()).toHaveLength(3);
@@ -74,8 +74,8 @@ describe('run-owned invariants', () => {
     expect(trigger).toHaveFocus();
   });
 
-  it('statistics, calendar and logs rebucket the same timestamp without trusting or mutating legacy dates', () => {
-    const hits = [{ id: 'boundary', timestamp: Date.parse('2026-11-13T01:00:00Z'), date: '1999-01-01' }];
+  it('statistics, calendar and logs rebucket the same stored instant without mutating v2 hits', () => {
+    const hits = [{ id: 'boundary', at: Date.parse('2026-11-13T01:00:00Z') }];
     const before = JSON.stringify(hits);
     const view = (timezone: string) => <><Statistics hits={hits} timezone={timezone} /><HitCalendar hits={hits} currentMonth={new Date(2026, 10, 1)} timezone={timezone} /><HitLogs hits={hits} timezone={timezone} /></>;
     const { container, rerender } = render(view('America/Los_Angeles'));

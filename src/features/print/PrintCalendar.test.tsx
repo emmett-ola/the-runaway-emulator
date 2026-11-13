@@ -15,9 +15,9 @@ vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));
 
 const month = new Date(2026, 10, 1);
 const hits: HitLog[] = [
-  { id: 'boundary', timestamp: Date.UTC(2026, 11, 1, 1), date: '1999-01-01' },
-  { id: 'same-day', timestamp: Date.UTC(2026, 11, 1, 2), date: '1999-01-01' },
-  { id: 'december', timestamp: Date.UTC(2026, 11, 15, 12), date: '1999-01-01' },
+  { id: 'boundary', at: Date.UTC(2026, 11, 1, 1) },
+  { id: 'same-day', at: Date.UTC(2026, 11, 1, 2) },
+  { id: 'december', at: Date.UTC(2026, 11, 15, 12) },
 ];
 const values = (root: ParentNode, selector: string) =>
   Array.from(root.querySelectorAll(selector), node => node.textContent);
@@ -44,7 +44,7 @@ afterEach(() => {
 
 describe('print feature regression contract', () => {
   it('Settings opens the current month from the persisted record without invoking window.print', async () => {
-    writeRecord({ username: 'print-user', hits, profile: { registrationDate: 1 } });
+    writeRecord({ username: 'print-user', hits, registeredAt: 1, profile: {} });
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const { getByRole, queryByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
     expect(queryByRole('dialog')).toBeNull();
@@ -90,7 +90,7 @@ describe('print feature regression contract', () => {
     expect(print).not.toHaveBeenCalled();
   });
 
-  it('rebuckets timestamps, not cached hit.date, when the timezone or controlled month changes', () => {
+  it('rebuckets stored at instants when the timezone or controlled month changes', () => {
     const props = { hits, username: 'print-user', currentMonth: month, onClose: vi.fn() };
     const before = JSON.stringify(hits);
     const { container, rerender } = render(<PrintCalendar {...props} />);

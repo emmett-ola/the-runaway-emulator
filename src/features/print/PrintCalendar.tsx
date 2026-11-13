@@ -86,7 +86,7 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
     // Recalculate hit dates based on current timezone
     const hitsByDate = new Map<string, number>();
     hits.forEach(hit => {
-      const dateStr = timestampToDateString(hit.timestamp, timezone);
+      const dateStr = timestampToDateString(hit.at, timezone);
       hitsByDate.set(dateStr, (hitsByDate.get(dateStr) || 0) + 1);
     });
 

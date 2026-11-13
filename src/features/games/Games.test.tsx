@@ -7,8 +7,8 @@ import { i18n } from '../../lib/i18n';
 beforeEach(() => {
   localStorage.clear(); sessionStorage.clear(); i18n.setLanguage('en_us');
   sessionStorage.setItem('runawaylog-username', 'player');
-  writeRecord({ username: 'player', hits: [], profile: { registrationDate: 1 }, cardCollections: { '#001': 7, '#007': 2 } });
-  writeRecord({ username: 'peer', hits: [], profile: { registrationDate: 1 } });
+  writeRecord({ username: 'player', hits: [], registeredAt: 1, profile: {}, cardCollections: { '#001': 7, '#007': 2 } });
+  writeRecord({ username: 'peer', hits: [], registeredAt: 1, profile: {} });
 });
 afterEach(cleanup);
 it('persists keyboard-accessible game toggles per user and leaves coming-soon controls inert', async () => {

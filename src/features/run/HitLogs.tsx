@@ -33,7 +33,7 @@ export const HitLogs = ({ hits, timezone: propTimezone }: HitLogsProps) => {
   };
 
   // Show most recent hits first
-  const sortedHits = [...hits].sort((a, b) => b.timestamp - a.timestamp);
+  const sortedHits = [...hits].sort((a, b) => b.at - a.at);
   const recentHits = sortedHits.slice(0, 50); // Show last 50 hits
 
   return (
@@ -48,7 +48,7 @@ export const HitLogs = ({ hits, timezone: propTimezone }: HitLogsProps) => {
         {recentHits.map((hit, index) => (
           <div key={hit.id} className="log-item">
             <span className="log-number">#{sortedHits.length - index}</span>
-            <span className="log-time">{formatTime(hit.timestamp)}</span>
+            <span className="log-time">{formatTime(hit.at)}</span>
             <span className="log-icon">🏃</span>
           </div>
         ))}

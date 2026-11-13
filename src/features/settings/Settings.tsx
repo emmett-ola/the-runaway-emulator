@@ -6,8 +6,8 @@ import { getTheme, setTheme, type Theme } from '../../darkMode';
 import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../lib/time';
 import { i18n } from '../../lib/i18n';
 import type { SupportedLanguage } from '../../lib/i18n';
-import { getStorageMode, setStorageMode, type StorageMode, loadUserData, saveUserData } from '../../storage';
-import { exportUserData, importUserData, combineImportedHits } from './dataManagement';
+import { getStorageMode, setStorageMode, type StorageMode, loadUserData } from '../../storage';
+import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from './dataManagement';
 import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
 import { PrintCalendar } from '../print';
 import type { HitLog } from '../../types';
@@ -43,7 +43,7 @@ export const Settings = () => {
   
   // Import/Export settings
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importDialog, setImportDialog] = useState<{ show: boolean; data: { username: string; hits: Array<{ id: string; timestamp: number; date: string }> } | null }>({ show: false, data: null });
+  const [importDialog, setImportDialog] = useState<{ show: boolean; data: ImportedUserData | null }>({ show: false, data: null });
   
   const [printDialog, setPrintDialog] = useState<{ hits: HitLog[]; month: Date } | null>(null);
 
@@ -71,7 +71,7 @@ export const Settings = () => {
     if (!file) return;
     
     try {
-      const importedData = await importUserData(file);
+      const importedData = await importUserData(file, username);
       setReplaceConfirmed(false);
       setImportDialog({ show: true, data: importedData });
     } catch (error) {
@@ -87,38 +87,30 @@ export const Settings = () => {
   const handleImportMerge = async () => {
     if (!importDialog.data) return;
     
-    const userData = await loadUserData(username) || { username, hits: [] };
-    const hits = combineImportedHits(userData.hits, importDialog.data.hits);
-    const newHitCount = hits.length - userData.hits.length;
-    const mergedData = {
-      ...userData,
-      hits: hits.sort((a, b) => a.timestamp - b.timestamp),
-    };
-    
-    await saveUserData(mergedData);
-    
-    setImportDialog({ show: false, data: null });
-    alert(i18n.t('errors.import_merged', { count: newHitCount }));
-    
-    window.location.reload();
+    try {
+      const userData = await loadUserData(username);
+      const mergedData = confirmImportedData(username, importDialog.data, 'merge');
+      const newHitCount = mergedData.hits.length - (userData?.hits.length ?? 0);
+      setImportDialog({ show: false, data: null });
+      alert(i18n.t('errors.import_merged', { count: newHitCount }));
+      window.location.reload();
+    } catch (error) {
+      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    }
   };
   
   // Handle import replace
   const handleImportReplace = async () => {
     if (!importDialog.data || !replaceConfirmed) return;
     
-    const userData = await loadUserData(username) || { username, hits: [] };
-    const replacedData = {
-      ...userData,
-      hits: importDialog.data.hits,
-    };
-    
-    await saveUserData(replacedData);
-    
-    setImportDialog({ show: false, data: null });
-    alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
-    
-    window.location.reload();
+    try {
+      confirmImportedData(username, importDialog.data, 'replace');
+      setImportDialog({ show: false, data: null });
+      alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
+      window.location.reload();
+    } catch (error) {
+      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    }
   };
   
   // Handle import cancel

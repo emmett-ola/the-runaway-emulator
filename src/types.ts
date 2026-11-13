@@ -1,31 +1,9 @@
-export type HitLog = {
-  id: string;
-  timestamp: number;
-  date: string;
-};
-
-export type GameSettings = {
-  forkInTheRoadEnabled?: boolean;
-  cardDropEnabled?: boolean;
-};
-
-export type UserSettings = {
-  timezone?: string;
-  theme?: string;
-  darkMode?: 'light' | 'dark';
-  games?: GameSettings;
-};
-
-export type UserProfile = {
-  email?: string;
-  registrationDate: number;
-  avatarUrl?: string;
-};
-
-export type UserData = {
-  username: string;
-  hits: HitLog[];
-  settings?: UserSettings;
-  profile?: UserProfile;
-  cardCollections?: Record<string, number>;
-};
+// Compatibility names for feature consumers; lib/storage owns the persisted model.
+export type {
+  Hit as HitLog,
+  UserRecord as UserData,
+  UserProfile,
+  UserSettings,
+  GameSettings,
+  Store,
+} from './lib/storage/model';

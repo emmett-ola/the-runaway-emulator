@@ -29,10 +29,8 @@ export const Profile = () => {
         // Create default user data for new users
         data = {
           username,
+          registeredAt: Date.now(),
           hits: [],
-          profile: {
-            registrationDate: Date.now(),
-          },
         };
         await saveUserData(data);
       }
@@ -50,7 +48,6 @@ export const Profile = () => {
         profile: {
           ...userData.profile,
           email: email.trim() || undefined,
-          registrationDate: userData.profile!.registrationDate,
         },
       };
       await saveUserData(updatedData);
@@ -68,10 +65,10 @@ export const Profile = () => {
   }
 
   const avatarUrl = getGravatarUrl(userData.profile?.email, 200, username);
-  const registrationDate = userData.profile!.registrationDate;
-  const memberSince = formatMemberSince(registrationDate);
+  const registeredAt = userData.registeredAt;
+  const memberSince = formatMemberSince(registeredAt);
   const locale = { en_us: 'en-US', zh_cn: 'zh-CN', zh_tw: 'zh-TW' }[i18n.getLanguage()];
-  const joinDate = new Date(registrationDate).toLocaleDateString(locale, {
+  const joinDate = new Date(registeredAt).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

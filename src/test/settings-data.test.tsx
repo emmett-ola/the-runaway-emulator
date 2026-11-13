@@ -6,12 +6,12 @@ import { exportUserData, importUserData } from '../exportImport';
 import { i18n } from '../lib/i18n';
 import { readRecord, writeRecord } from '../lib/storage';
 
-const hit = (id: string, timestamp = 1760000000000) => ({ id, timestamp, date: '2025-10-09' });
+const hit = (id: string, at = 1760000000000) => ({ id, at });
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.setItem('runawaylog-username', 'current');
   i18n.setLanguage('en_us');
-  writeRecord({ username: 'current', hits: [hit('old')], profile: { registrationDate: 100, email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
+  writeRecord({ username: 'current', hits: [hit('old')], registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
   vi.spyOn(window, 'alert').mockImplementation(() => {});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -33,7 +33,7 @@ describe('settings data-management invariants', () => {
     fireEvent.click(view.getByRole('checkbox', { name: i18n.t('import_dialog.replace') }));
     fireEvent.click(replace);
     await waitFor(() => expect(readRecord('current')!.hits.map(h => h.id)).toEqual(['new']));
-    expect(readRecord('current')).toMatchObject({ username: 'current', profile: { registrationDate: 100, email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
+    expect(readRecord('current')).toMatchObject({ username: 'current', registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
     expect(readRecord('other')).toBeNull();
     expect(localStorage.getItem('calendar-theme')).toBeNull();
   });

@@ -344,13 +344,12 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
       expect(String(value)).not.toContain(t('run_scene.title'));
     }
 
-    // The hit itself is real and persisted by the existing path; nothing else is.
-    // `profile` is added by the pre-existing storage layer (registration date),
-    // not by R1.
+    // The hit and stable registration are v2 data, not scene state.
     const stored = JSON.parse(localStorage.getItem('runawaylog-data') ?? '{}');
-    expect(stored.testuser.hits).toHaveLength(1);
-    const keys = Object.keys(stored.testuser).sort();
-    expect(keys).toEqual(['hits', 'profile', 'username']);
+    expect(stored.schemaVersion).toBe(2);
+    expect(stored.users.testuser.hits).toHaveLength(1);
+    const keys = Object.keys(stored.users.testuser).sort();
+    expect(keys).toEqual(['hits', 'registeredAt', 'username']);
     expect(keys.some((key) => /scene/i.test(key))).toBe(false);
 
     // saveUserData was never handed a scene field (in fact never called here).

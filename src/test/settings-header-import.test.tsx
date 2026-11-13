@@ -4,10 +4,10 @@ import { Dashboard } from '../features/run';
 import { i18n } from '../lib/i18n';
 import { readRecord, writeRecord } from '../lib/storage';
 vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));
-const hit = (id: string) => ({ id, timestamp: 1760000000000, date: '2025-10-09' });
+const hit = (id: string) => ({ id, at: 1760000000000 });
 beforeEach(() => {
   localStorage.clear(); i18n.setLanguage('en_us');
-  writeRecord({ username: 'current', hits: [hit('old')], profile: { registrationDate: 100, email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
+  writeRecord({ username: 'current', hits: [hit('old')], registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
   vi.spyOn(window, 'alert').mockImplementation(() => {});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -20,6 +20,6 @@ it('header import obeys confirmation and preserves profile, games, identity, and
   fireEvent.click(view.getByRole('checkbox', { name: i18n.t('import_dialog.replace') }));
   fireEvent.click(replace);
   await waitFor(() => expect(readRecord('current')!.hits.map(h => h.id)).toEqual(['new']));
-  expect(readRecord('current')).toMatchObject({ username: 'current', profile: { registrationDate: 100, email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
+  expect(readRecord('current')).toMatchObject({ username: 'current', registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
   expect(localStorage.getItem('calendar-theme')).toBeNull();
 });

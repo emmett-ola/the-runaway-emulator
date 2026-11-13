@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { animate } from 'animejs';
 import { i18n, type SupportedLanguage } from '../lib/i18n';
 import { login } from '../auth';
+import { StorageBlockedError } from '../lib/storage';
+import { exportRecoveryData } from '../features/settings/dataManagement';
 import './Login.css';
 
 interface LoginProps {
@@ -12,6 +14,7 @@ export const Login = ({ onLogin }: LoginProps) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [storageBlocked, setStorageBlocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.getLanguage());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,6 +33,7 @@ export const Login = ({ onLogin }: LoginProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setStorageBlocked(false);
     
     if (!username.trim()) {
       setError(i18n.t('login.error.username_required'));
@@ -44,6 +48,7 @@ export const Login = ({ onLogin }: LoginProps) => {
       
       onLogin(username.trim());
     } catch (err: unknown) {
+      setStorageBlocked(err instanceof StorageBlockedError);
       // Handle specific error messages
       let errorMessage = '';
       if (typeof err === 'object' && err !== null && 'message' in err && err.message === 'Invalid username or password') {
@@ -87,6 +92,7 @@ export const Login = ({ onLogin }: LoginProps) => {
         <p className="login-slogan">"{i18n.t('login.slogan')}"</p>
         
         {error && <div className="login-error">{error}</div>}
+        {storageBlocked && <button type="button" onClick={exportRecoveryData}>{i18n.t('settings.export_data')}</button>}
         
         <form onSubmit={handleSubmit}>
           <div className="login-form-group">

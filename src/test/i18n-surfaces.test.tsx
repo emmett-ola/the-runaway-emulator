@@ -18,7 +18,7 @@ vi.mock('../storage', async importOriginal => {
   const actual = await importOriginal<typeof import('../storage')>();
   return {
     ...actual,
-    loadUserData: vi.fn(async () => ({ username: 'testuser', hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection })),
+    loadUserData: vi.fn(async () => ({ username: 'testuser', registeredAt: 1, hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection })),
     saveUserData: vi.fn(async () => {}),
   };
 });
@@ -39,7 +39,7 @@ const existing = (key: string) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(loadUserData).mockReset().mockResolvedValue({ username: 'testuser', hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection });
+  vi.mocked(loadUserData).mockReset().mockResolvedValue({ username: 'testuser', registeredAt: 1, hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection });
   localStorage.clear();
   sessionStorage.clear();
   sessionStorage.setItem('runawaylog-username', 'testuser');
@@ -132,7 +132,7 @@ describe.each(locales)('i18n rendered surfaces — %s', locale => {
   it('Settings opens the loaded current-month calendar, never the Settings print surface', async () => {
     localStorage.setItem('runawaylog-timezone', 'America/Los_Angeles');
     const timestamp = Date.UTC(2026, 11, 1, 1);
-    vi.mocked(loadUserData).mockResolvedValueOnce({ username: 'testuser', hits: [{ id: 'loaded', timestamp, date: '2026-12-01' }] });
+    vi.mocked(loadUserData).mockResolvedValueOnce({ username: 'testuser', registeredAt: 1, hits: [{ id: 'loaded', at: timestamp }] });
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const { container, getByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
     expect(loadUserData).not.toHaveBeenCalled();
@@ -250,7 +250,7 @@ describe('Print dialog interaction contract', () => {
     fireEvent.click(getByRole('button', { name: existing('settings.print_calendar') }));
     expect(queryByRole('dialog')).toBeNull();
     vi.setSystemTime(new Date(2026, 11, 1, 0, 0, 1));
-    await act(async () => resolve({ username: 'testuser', hits: [] }));
+    await act(async () => resolve({ username: 'testuser', registeredAt: 1, hits: [] }));
     const dialog = getByRole('dialog');
     expect(dialog.querySelector('.print-month-title')).toHaveTextContent('November 2026');
     expect(dialog.querySelectorAll('.print-day-number')).toHaveLength(30);

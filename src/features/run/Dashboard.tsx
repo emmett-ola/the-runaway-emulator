@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { animate } from 'animejs';
 import type { UserData } from '../../types';
-import { addHit, loadUserData, saveUserData } from '../../storage';
+import { addHit, loadUserData } from '../../storage';
 import { getRandomQuote } from '../../quotes';
-import { exportUserData, importUserData, combineImportedHits, SettingsMenu } from '../settings';
+import { exportUserData, importUserData, SettingsMenu } from '../settings';
+import { confirmImportedData, type ImportedUserData } from '../settings/dataManagement';
 import { getSavedTimezone } from '../../lib/time';
 import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
@@ -24,10 +25,10 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   useT();
   const claimScene = useSceneTrigger();
   const animationLock = useRef(false);
-  const [userData, setUserData] = useState<UserData>({ username, hits: [] });
+  const [userData, setUserData] = useState<UserData>(() => ({ username, registeredAt: Date.now(), hits: [] }));
   const [isAnimating, setIsAnimating] = useState(false);
   const [quote, setQuote] = useState<string>(() => getRandomQuote());
-  const [importDialog, setImportDialog] = useState<{ show: boolean; data: UserData | null }>({ show: false, data: null });
+  const [importDialog, setImportDialog] = useState<{ show: boolean; data: ImportedUserData | null }>({ show: false, data: null });
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -343,7 +344,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     if (!file) return;
 
     try {
-      const importedData = await importUserData(file);
+      const importedData = await importUserData(file, username);
       setReplaceConfirmed(false);
       setImportDialog({ show: true, data: importedData });
     } catch (error) {
@@ -359,39 +360,30 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const handleImportMerge = () => {
     if (!importDialog.data) return;
     
-    const hits = combineImportedHits(userData.hits, importDialog.data.hits);
-    const newHitCount = hits.length - userData.hits.length;
-    const mergedData = {
-      ...userData,
-      username,
-      hits: hits.sort((a, b) => a.timestamp - b.timestamp),
-    };
-    setUserData(mergedData);
-    saveUserData(mergedData);
-    
-    setImportDialog({ show: false, data: null });
-    alert(i18n.t('errors.import_merged', { count: newHitCount }));
-    
-    // Refresh page to apply all settings
-    window.location.reload();
+    try {
+      const mergedData = confirmImportedData(username, importDialog.data, 'merge');
+      const newHitCount = mergedData.hits.length - userData.hits.length;
+      setUserData(mergedData);
+      setImportDialog({ show: false, data: null });
+      alert(i18n.t('errors.import_merged', { count: newHitCount }));
+      window.location.reload();
+    } catch (error) {
+      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    }
   };
 
   const handleImportReplace = () => {
     if (!importDialog.data || !replaceConfirmed) return;
     
-    const replacedData = {
-      ...userData,
-      username,
-      hits: importDialog.data.hits,
-    };
-    setUserData(replacedData);
-    saveUserData(replacedData);
-    
-    setImportDialog({ show: false, data: null });
-    alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
-    
-    // Refresh page to apply all settings
-    window.location.reload();
+    try {
+      const replacedData = confirmImportedData(username, importDialog.data, 'replace');
+      setUserData(replacedData);
+      setImportDialog({ show: false, data: null });
+      alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
+      window.location.reload();
+    } catch (error) {
+      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    }
   };
 
   const handleImportCancel = () => {

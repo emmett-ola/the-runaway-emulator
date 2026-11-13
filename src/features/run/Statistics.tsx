@@ -20,7 +20,7 @@ interface HourStats {
 export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
   useT();
   const stats = useMemo(() => {
-    const hits = storedHits.map(hit => ({ ...hit, date: timestampToDateString(hit.timestamp, timezone) }));
+    const hits = storedHits.map(hit => ({ ...hit, day: timestampToDateString(hit.at, timezone) }));
     if (hits.length === 0) {
       return {
         total: 0,
@@ -52,14 +52,14 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
     let thisMonth = 0;
 
     hits.forEach(hit => {
-      if (hit.date === todayStr) today++;
-      if (hit.date >= weekStartKey && hit.date <= todayStr) thisWeek++;
-      if (hit.date >= monthStartKey && hit.date <= todayStr) thisMonth++;
+      if (hit.day === todayStr) today++;
+      if (hit.day >= weekStartKey && hit.day <= todayStr) thisWeek++;
+      if (hit.day >= monthStartKey && hit.day <= todayStr) thisMonth++;
     });
 
     // Calculate streaks
-    const sortedHits = [...hits].sort((a, b) => b.timestamp - a.timestamp);
-    const uniqueDates = Array.from(new Set(sortedHits.map(h => h.date))).sort().reverse();
+    const sortedHits = [...hits].sort((a, b) => b.at - a.at);
+    const uniqueDates = Array.from(new Set(sortedHits.map(h => h.day))).sort().reverse();
     
     let currentStreak = 0;
     let longestStreak = 0;
@@ -96,7 +96,7 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
 
     // Calculate average per day
     const firstHit = hits[0];
-    const daysSinceFirst = Math.max(1, Math.ceil((now - firstHit.timestamp) / (1000 * 60 * 60 * 24)));
+    const daysSinceFirst = Math.max(1, Math.ceil((now - firstHit.at) / (1000 * 60 * 60 * 24)));
     const averagePerDay = hits.length / daysSinceFirst;
 
     // Most active day of week
@@ -104,7 +104,7 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
     const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     
     hits.forEach(hit => {
-      const dayKey = dayKeys[new Date(`${hit.date}T00:00:00Z`).getUTCDay()];
+      const dayKey = dayKeys[new Date(`${hit.day}T00:00:00Z`).getUTCDay()];
       dayStats[dayKey] = (dayStats[dayKey] || 0) + 1;
     });
     
@@ -116,7 +116,7 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
     const hourStats: HourStats = {};
     
     hits.forEach(hit => {
-      const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', hourCycle: 'h23' }).format(hit.timestamp));
+      const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', hourCycle: 'h23' }).format(hit.at));
       hourStats[hour] = (hourStats[hour] || 0) + 1;
     });
     
@@ -130,7 +130,7 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
     const dateStats: DayStats = {};
     
     hits.forEach(hit => {
-      dateStats[hit.date] = (dateStats[hit.date] || 0) + 1;
+      dateStats[hit.day] = (dateStats[hit.day] || 0) + 1;
     });
     
     const [peakDay, peakCount] = Object.entries(dateStats).reduce((a, b) => 

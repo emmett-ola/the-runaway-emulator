@@ -41,5 +41,23 @@ const identityKeys = {
 } as const;
 type IdentityCache = keyof typeof identityKeys;
 export const readIdentityCache = (cache: IdentityCache): string | null => localStorage.getItem(identityKeys[cache]);
-export const writeIdentityCache = (cache: IdentityCache, value: string): void => localStorage.setItem(identityKeys[cache], value);
-export const removeIdentityCache = (cache: IdentityCache): void => localStorage.removeItem(identityKeys[cache]);
+const preserveIdentityMirror = (): void => {
+  const raw = localStorage.getItem(identityKeys.currentUser);
+  if (raw === null) return;
+  try {
+    const identity: unknown = JSON.parse(raw);
+    if (identity && typeof identity === 'object' && Object.keys(identity).length === 1 && 'username' in identity && typeof identity.username === 'string') return;
+  } catch { /* Unreadable mirror bytes also belong in the recovery archive. */ }
+  const existing = localStorage.getItem('runawaylog-current-user-backups');
+  const backups: unknown = existing === null ? [] : JSON.parse(existing);
+  if (!Array.isArray(backups) || backups.some(value => typeof value !== 'string')) throw new Error('Invalid identity recovery archive');
+  if (!backups.includes(raw)) localStorage.setItem('runawaylog-current-user-backups', JSON.stringify([...backups, raw]));
+};
+export const writeIdentityCache = (cache: IdentityCache, value: string): void => {
+  if (cache === 'currentUser') preserveIdentityMirror();
+  localStorage.setItem(identityKeys[cache], value);
+};
+export const removeIdentityCache = (cache: IdentityCache): void => {
+  if (cache === 'currentUser') preserveIdentityMirror();
+  localStorage.removeItem(identityKeys[cache]);
+};

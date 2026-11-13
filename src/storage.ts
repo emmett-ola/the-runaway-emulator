@@ -1,5 +1,5 @@
 import type { UserData, HitLog } from './types';
-import { getCurrentTimestamp, timestampToDateString, getSavedTimezone } from './lib/time';
+import { getCurrentTimestamp } from './lib/time';
 import { getStorageMode, setStorageMode, type StorageMode } from './lib/storage/preferences';
 export { getStorageMode, setStorageMode } from './lib/storage/preferences';
 export type { StorageMode } from './lib/storage/preferences';
@@ -20,30 +20,7 @@ export interface StorageAdapter {
 export class LocalStorageAdapter implements StorageAdapter {
   async loadUserData(username: string): Promise<UserData | null> {
     try {
-      const userData = readRecord(username);
-      
-      if (!userData) return null;
-      
-      // Migrate old data: recalculate date field based on timestamp and current timezone
-      const timezone = getSavedTimezone();
-      let needsSave = false;
-      
-      const migratedHits = userData.hits.map(hit => {
-        const correctDate = timestampToDateString(hit.timestamp, timezone);
-        if (hit.date !== correctDate) {
-          needsSave = true;
-          return { ...hit, date: correctDate };
-        }
-        return hit;
-      });
-      
-      if (needsSave) {
-        const migratedData = { ...userData, hits: migratedHits };
-        await this.saveUserData(migratedData);
-        return migratedData;
-      }
-      
-      return userData;
+      return readRecord(username);
     } catch (error) {
       console.error('Error loading user data from local storage:', error);
       return null;
@@ -60,33 +37,11 @@ export class LocalStorageAdapter implements StorageAdapter {
 
   async addHit(username: string): Promise<HitLog | null> {
     try {
-      const userData = await this.loadUserData(username) || { 
-        username, 
-        hits: [],
-        profile: {
-          registrationDate: Date.now(),
-        }
-      };
-      
-      // Ensure profile exists with registration date for existing users
-      if (!userData.profile) {
-        userData.profile = {
-          registrationDate: Date.now(),
-        };
-      }
-      
-      // Store timestamp in UTC (Date.now() is always UTC)
-      const timestamp = getCurrentTimestamp();
-      const timezone = getSavedTimezone();
-      
-      const newHit: HitLog = {
-        id: `${timestamp}-${Math.random()}`,
-        timestamp: timestamp,
-        date: timestampToDateString(timestamp, timezone),
-      };
-      
-      userData.hits.push(newHit);
-      await this.saveUserData(userData);
+      // Read directly so a blocked migration cannot be mistaken for a missing user.
+      const userData = readRecord(username) || { username, registeredAt: Date.now(), hits: [] };
+      const at = getCurrentTimestamp();
+      const newHit: HitLog = { id: crypto.randomUUID(), at };
+      writeRecord({ ...userData, hits: [...userData.hits, newHit] });
       
       return newHit;
     } catch (error) {

@@ -1,5 +1,5 @@
 import type { UserData } from './types';
-import { readWholeMap, writeWholeMap, writeRecord } from './lib/storage';
+import { readRecord, writeRecord } from './lib/storage';
 import { readIdentityCache, writeIdentityCache, removeIdentityCache } from './lib/storage/preferences';
 
 export type AuthStatus = 'logged_out' | 'logging_in' | 'logged_in' | 'registering';
@@ -70,7 +70,7 @@ export const removeToken = (): void => {
  */
 export const saveCurrentUser = (userData: UserData): void => {
   try {
-    writeIdentityCache('currentUser', JSON.stringify(userData));
+    writeIdentityCache('currentUser', JSON.stringify({ username: userData.username }));
   } catch (error) {
     console.error('Error saving current user:', error);
   }
@@ -82,7 +82,9 @@ export const saveCurrentUser = (userData: UserData): void => {
 export const loadCurrentUser = (): UserData | null => {
   try {
     const userData = readIdentityCache('currentUser');
-    return userData ? JSON.parse(userData) : null;
+    const identity: unknown = userData ? JSON.parse(userData) : null;
+    if (!identity || typeof identity !== 'object' || !('username' in identity) || typeof identity.username !== 'string') return null;
+    return readRecord(identity.username);
   } catch (error) {
     console.error('Error loading current user:', error);
     return null;
@@ -156,23 +158,19 @@ export const login = async (username: string, password: string): Promise<UserDat
   await new Promise(resolve => setTimeout(resolve, 500));
   
   // Get user data
-  const allUserData = readWholeMap();
-  let userData = allUserData[username];
+  let userData = readRecord(username);
   
   // If user doesn't exist, create a new user automatically
   if (!userData) {
     // Create new user
     userData = {
       username,
+      registeredAt: Date.now(),
       hits: [],
-      profile: {
-        registrationDate: Date.now(),
-      },
     };
     
     // Save new user data
-    allUserData[username] = userData;
-    writeWholeMap(allUserData);
+    writeRecord(userData);
     
     // If password is provided, save credentials
     if (password.trim()) {
@@ -218,18 +216,16 @@ export const register = async (username: string, password: string, email?: strin
   
   // Check if username already exists
   const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
-  if (credentials[username]) {
+  if (credentials[username] || readRecord(username)) {
     throw new Error('Username already exists');
   }
   
   // Create new user
   const newUser: UserData = {
     username,
+    registeredAt: Date.now(),
     hits: [],
-    profile: {
-      email,
-      registrationDate: Date.now(),
-    },
+    profile: { email },
   };
   
   // Save user data

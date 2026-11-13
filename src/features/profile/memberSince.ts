@@ -1,7 +1,7 @@
 import { i18n } from '../../lib/i18n';
 
-export function formatMemberSince(registrationDate: number, now = Date.now()): string {
-  const days = Math.ceil(Math.abs(now - registrationDate) / 86400000);
+export function formatMemberSince(registeredAt: number, now = Date.now()): string {
+  const days = Math.ceil(Math.abs(now - registeredAt) / 86400000);
   const unit = (name: string, count: number) => i18n.t(`profile.${name}_${count === 1 ? 'one' : 'many'}`, { count });
   if (days < 30) return unit('day', days);
   if (days < 365) return unit('month', Math.floor(days / 30));
