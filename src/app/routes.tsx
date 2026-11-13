@@ -1,16 +1,15 @@
+import { SurfaceBoundary } from '../ui/SurfaceBoundary';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Home } from '../pages/Home';
-import { GamesHub } from '../pages/games/GamesHub';
-import { CardGame } from '../pages/games/CardGame';
+import { Home } from '../features/run';
+import { GamesHub, CardGame } from '../features/games';
 
-import { Releases } from '../pages/Releases';
-import { Settings } from '../pages/Settings';
-import { Profile } from '../pages/Profile';
-import { About } from '../pages/About';
+import { About, Releases } from '../features/about';
+import { Settings } from '../features/settings';
+import { Profile } from '../features/profile';
 
 export function AppRoutes({ username, handleLogout }: { username: string; handleLogout: () => void }) {
   return (
-      <Routes>
+      <SurfaceBoundary navigation={{ username, onLogout: handleLogout }}><Routes>
         <Route path="/" element={<Home username={username} onLogout={handleLogout} />} />
         <Route path="/games" element={<GamesHub />} />
         <Route path="/games/cards" element={<CardGame />} />
@@ -20,6 +19,6 @@ export function AppRoutes({ username, handleLogout }: { username: string; handle
         <Route path="/profile" element={<Profile />} />
         <Route path="/about" element={<About />} />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      </Routes></SurfaceBoundary>
   );
 }

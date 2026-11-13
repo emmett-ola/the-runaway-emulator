@@ -1,7 +1,22 @@
 import type { Translations } from './en_us';
 
 export const zh_cn = {
+  "surface_error": { "title": "无法显示此页面。", "retry": "重试" },
+  "releases": {
+    "title": "更新日志", "subtitle": "跑路日志的新变化",
+    "v110_title": "专业模式与重大更新",
+    "v110_1": "🎮 带导航和多个页面的专业模式", "v110_2": "📊 包含连续记录和洞察的统计面板",
+    "v110_3": "📱 支持离线使用和安装的渐进式网页应用", "v110_4": "🧪 包含 39 项单元测试的测试基础设施",
+    "v110_5": "📱 完整的移动端适配修复", "v110_6": "🌍 自动检测浏览器时区",
+    "v100_title": "首次发布", "v100_1": "🏃 一键记录跑路", "v100_2": "📅 90 天日历热力图",
+    "v100_3": "🎨 6 种配色主题", "v100_4": "🌙 深色模式支持", "v100_5": "📤 导出和导入数据",
+    "v100_6": "🖨️ 打印日历", "v100_7": "⚙️ 设置菜单", "v100_8": "🌍 时区支持", "v100_9": "💥 爆炸彩蛋动画",
+    "version": "版本 {version} • MIT 许可证 • © 2025"
+  },
   "profile": {
+    "save": "保存", "cancel": "取消", "loading": "加载中...", "avatar": "{username}的头像",
+    "day_one": "{count} 天", "day_many": "{count} 天", "month_one": "{count} 个月", "month_many": "{count} 个月",
+    "year_one": "{count} 年", "year_many": "{count} 年", "duration_pair": "{years}，{months}",
     "title": "个人资料",
     "escape_dreams": "跑路梦想",
     "member_for": "加入时长",

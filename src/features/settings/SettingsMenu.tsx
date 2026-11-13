@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { colorThemes, getThemeById, applyTheme } from '../../themes';
 import { getTheme, setTheme, type Theme } from '../../darkMode';
-import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../timezone';
+import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../lib/time';
 import { i18n, type SupportedLanguage } from '../../lib/i18n';
 import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
 import './SettingsMenu.css';

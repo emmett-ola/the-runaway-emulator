@@ -1,5 +1,20 @@
 export const en_us = {
+  "surface_error": { "title": "This page could not be displayed.", "retry": "Try again" },
+  "releases": {
+    "title": "Release Notes", "subtitle": "What's new in RunawayLog",
+    "v110_title": "Pro Mode & Major Updates",
+    "v110_1": "🎮 Pro Mode with navigation and multiple pages", "v110_2": "📊 Statistics dashboard with streaks and insights",
+    "v110_3": "📱 PWA support for offline use and installation", "v110_4": "🧪 Testing infrastructure with 39 unit tests",
+    "v110_5": "📱 Complete mobile responsiveness fixes", "v110_6": "🌍 Browser timezone auto-detection",
+    "v100_title": "Initial Release", "v100_1": "🏃 One-click escape tracking", "v100_2": "📅 90-day calendar heatmap",
+    "v100_3": "🎨 6 color themes", "v100_4": "🌙 Dark mode support", "v100_5": "📤 Export/Import data",
+    "v100_6": "🖨️ Print calendar", "v100_7": "⚙️ Settings menu", "v100_8": "🌍 Timezone support", "v100_9": "💥 Easter egg boom animation",
+    "version": "Version {version} • MIT License • © 2025"
+  },
   "profile": {
+    "save": "Save", "cancel": "Cancel", "loading": "Loading...", "avatar": "{username}'s avatar",
+    "day_one": "{count} day", "day_many": "{count} days", "month_one": "{count} month", "month_many": "{count} months",
+    "year_one": "{count} year", "year_many": "{count} years", "duration_pair": "{years}, {months}",
     "title": "User Profile",
     "escape_dreams": "Escape Dreams",
     "member_for": "Member For",

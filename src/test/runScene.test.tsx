@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { RunScene } from '../components/RunScene';
-import { Dashboard } from '../components/Dashboard';
-import { i18n } from '../i18n/i18n';
+import { RunScene } from '../features/scene';
+import { Dashboard } from '../features/run';
+import { i18n } from '../lib/i18n';
 
 // Records every saveUserData argument so T6 can prove no scene field is ever
 // handed to the persistence layer (vi.hoisted: visible inside the mock factory).

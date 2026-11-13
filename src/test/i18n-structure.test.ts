@@ -13,7 +13,7 @@ function lookup(tree: Tree, path: string): string | Tree | undefined {
 
 describe('i18n retained component structure and approved copy', () => {
   it('one module CARDS retains all eight records, order and Chinese card strings; sentinels stay empty keys', () => {
-    const source = parse('src/pages/games/GamesHub.tsx');
+    const source = parse('src/features/games/GamesHub.tsx');
     const declarations: ts.VariableDeclaration[] = [];
     function visit(node: ts.Node) {
       if (ts.isVariableDeclaration(node) && ['CARDS', 'cards', 'localCards'].includes(node.name.getText(source))) declarations.push(node);
@@ -53,7 +53,7 @@ describe('i18n retained component structure and approved copy', () => {
     expect(text).not.toContain('.toUpperCase()');
   });
   it('Print and Album add no subscriptions; both date formatters use the component language map', () => {
-    const hub = readFileSync('src/pages/games/GamesHub.tsx', 'utf8');
+    const hub = readFileSync('src/features/games/GamesHub.tsx', 'utf8');
     const print = parse('src/features/print/PrintCalendar.tsx');
     expect(hub).not.toContain('onLanguageChange');
     expect(print.text).not.toContain('onLanguageChange');

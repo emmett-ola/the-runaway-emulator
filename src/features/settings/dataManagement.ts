@@ -1,5 +1,5 @@
 import type { HitLog, UserData } from '../../types';
-import { getSavedTimezone } from '../../timezone';
+import { getSavedTimezone } from '../../lib/time';
 import { getTheme } from '../../darkMode';
 import { getCalendarTheme } from '../../lib/storage/preferences';
 

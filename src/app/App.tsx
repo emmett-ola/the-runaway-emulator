@@ -1,7 +1,8 @@
 import { BrowserRouter } from 'react-router-dom';
-import { Login } from '../components/Login';
+import { Login } from '../ui/Login';
 import { AppRoutes } from './routes';
 import { useSession } from './session';
+import { SceneSession } from '../features/scene';
 import { useDocumentMeta } from './useDocumentMeta';
 import '../App.css';
 
@@ -23,9 +24,9 @@ function App() {
   useDocumentMeta();
 
   return (
-    <BrowserRouter>
+    <SceneSession><BrowserRouter>
       <AppContent />
-    </BrowserRouter>
+    </BrowserRouter></SceneSession>
   );
 }
 

@@ -1,5 +1,5 @@
 import type { UserData, HitLog } from './types';
-import { getCurrentTimestamp, timestampToDateString, getSavedTimezone } from './timezone';
+import { getCurrentTimestamp, timestampToDateString, getSavedTimezone } from './lib/time';
 import { getStorageMode, setStorageMode, type StorageMode } from './lib/storage/preferences';
 export { getStorageMode, setStorageMode } from './lib/storage/preferences';
 export type { StorageMode } from './lib/storage/preferences';

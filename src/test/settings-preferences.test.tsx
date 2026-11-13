@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { Settings } from '../pages/Settings';
+import { Settings } from '../features/settings';
 import { i18n } from '../lib/i18n';
 import { getTheme } from '../darkMode';
-import { getSavedTimezone } from '../timezone';
+import { getSavedTimezone } from '../lib/time';
 import { getStorageMode } from '../storage';
 
 beforeEach(() => { localStorage.clear(); i18n.setLanguage('en_us'); });

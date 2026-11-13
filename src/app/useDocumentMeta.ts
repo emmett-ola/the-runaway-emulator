@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { i18n } from '../i18n/i18n';
+import { i18n } from '../lib/i18n';
 
 export function useDocumentMeta() {
   // Update document title and meta description when language changes

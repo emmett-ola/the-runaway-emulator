@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStorageAdapter, getStorageMode, setStorageMode, LocalStorageAdapter } from '../../storage';
 import { getTheme, setTheme } from '../../darkMode';
-import { getSavedTimezone, saveTimezone } from '../../timezone';
+import { getSavedTimezone, saveTimezone } from '../time';
 import { getCalendarTheme, setCalendarTheme, readIdentityCache, writeIdentityCache, removeIdentityCache, getLanguagePreference, setLanguagePreference } from './preferences';
 
 beforeEach(() => {

@@ -4,7 +4,7 @@ import { relative, resolve } from 'node:path';
 import { files, scan } from './i18n-hardcoded-scan';
 import { describe, expect, it } from 'vitest';
 
-const sources = ['src/components', 'src/pages', 'src/features'].flatMap(directory => files(resolve(directory)));
+const sources = ['src/ui', 'src/features'].flatMap(directory => files(resolve(directory)));
 const findings = sources.flatMap(file => scan(relative(process.cwd(), file), readFileSync(file, 'utf8')));
 
 describe('i18n hardcoded copy — compiler API inventory', () => {

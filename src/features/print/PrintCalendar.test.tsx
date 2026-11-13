@@ -4,9 +4,8 @@ import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/re
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { PrintCalendar } from './index';
-import { PrintCalendar as LegacyPrintCalendar } from '../../components/PrintCalendar';
-import { HitCalendar } from '../../components/HitCalendar';
-import { Settings } from '../../pages/Settings';
+import { HitCalendar } from '../run/HitCalendar';
+import { Settings } from '../settings';
 import { i18n, type SupportedLanguage } from '../../lib/i18n';
 import { writeRecord } from '../../lib/storage';
 import type { HitLog } from '../../types';
@@ -44,10 +43,6 @@ afterEach(() => {
 });
 
 describe('print feature regression contract', () => {
-  it('keeps the legacy import identical to the named public feature export', () => {
-    expect(LegacyPrintCalendar).toBe(PrintCalendar);
-  });
-
   it('Settings opens the current month from the persisted record without invoking window.print', async () => {
     writeRecord({ username: 'print-user', hits, profile: { registrationDate: 1 } });
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});

@@ -8,7 +8,7 @@ import {
   getCurrentTimestamp,
   formatDateInTimezone,
   getTimezoneDisplayName,
-} from '../timezone';
+} from '../lib/time';
 
 describe('timezone', () => {
   beforeEach(() => {

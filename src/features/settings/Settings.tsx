@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout } from '../../components/Layout';
+import { Layout } from '../../ui/Layout';
 import { colorThemes, getThemeById, applyTheme } from '../../themes';
 import { getTheme, setTheme, type Theme } from '../../darkMode';
-import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../timezone';
+import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../lib/time';
 import { i18n } from '../../lib/i18n';
 import type { SupportedLanguage } from '../../lib/i18n';
 import { getStorageMode, setStorageMode, type StorageMode, loadUserData, saveUserData } from '../../storage';
@@ -11,7 +11,7 @@ import { exportUserData, importUserData, combineImportedHits } from './dataManag
 import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
 import { PrintCalendar } from '../print';
 import type { HitLog } from '../../types';
-import './Settings.css';
+import '../../ui/SettingsLayout.css';
 
 export const Settings = () => {
   const navigate = useNavigate();

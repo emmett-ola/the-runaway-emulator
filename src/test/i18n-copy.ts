@@ -1,4 +1,4 @@
-import type { SupportedLanguage } from '../i18n/i18n';
+import type { SupportedLanguage } from '../lib/i18n';
 
 // Approved §6 copy, independent of the live translation trees (also usable in RED).
 export const copy: Record<string, Record<SupportedLanguage, string>> = Object.fromEntries([

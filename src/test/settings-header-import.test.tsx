@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
-import { Dashboard } from '../components/Dashboard';
+import { Dashboard } from '../features/run';
 import { i18n } from '../lib/i18n';
 import { readRecord, writeRecord } from '../lib/storage';
 vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));

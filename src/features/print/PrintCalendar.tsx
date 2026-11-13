@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import type { HitLog } from '../../types';
-import { getSavedTimezone, timestampToDateString } from '../../timezone';
+import { getSavedTimezone, timestampToDateString } from '../../lib/time';
 import { i18n } from '../../lib/i18n';
 import type { SupportedLanguage } from '../../lib/i18n';
 import './PrintCalendar.css';
