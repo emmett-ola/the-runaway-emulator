@@ -81,6 +81,7 @@ describe('typed locale parity against committed shipped XML output', () => {
     });
   }
 
+  // Invokes five TypeScript compiler programs; 5s under concurrent workers is unfair.
   it('compiler rejects missing and extra keys at top level and nested levels', () => {
     const reference = resolve('src/lib/i18n/locales/en_us.ts');
     for (const [name, expression] of [
@@ -110,7 +111,7 @@ describe('typed locale parity against committed shipped XML output', () => {
         console.log(`Compiler rejected ${name}: ${messages}`);
       }
     }
-  });
+  }, 30000);
 
   it('retains the existing hardcoded-copy AST rule and applies it to features/ui', () => {
     const directories = ['src/components', 'src/pages', 'src/features', 'src/ui'].filter(existsSync);
