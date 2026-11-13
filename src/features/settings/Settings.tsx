@@ -7,7 +7,7 @@ import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } 
 import { i18n } from '../../lib/i18n';
 import type { SupportedLanguage } from '../../lib/i18n';
 import { getStorageMode, setStorageMode, type StorageMode, loadUserData } from '../../storage';
-import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from './dataManagement';
+import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from '../../lib/data/transfer';
 import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
 import { PrintCalendar } from '../print';
 import type { HitLog } from '../../types';

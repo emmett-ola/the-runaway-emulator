@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createExportDocument, importUserData, applyImportedData, confirmImportedData } from './dataManagement';
-import { readStore, readRecord, writeRecord } from '../../lib/storage';
-import { migrate } from '../../lib/storage/migrate';
+import { createExportDocument, importUserData, applyImportedData, confirmImportedData } from './transfer';
+import { readStore, readRecord, writeRecord } from '../storage';
+import { migrate } from '../storage/migrate';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());

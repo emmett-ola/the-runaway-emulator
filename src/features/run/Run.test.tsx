@@ -7,7 +7,7 @@ import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
 import { writeRecord, readRecord } from '../../lib/storage';
 import { i18n } from '../../lib/i18n';
-import { registerRunGame } from '../games';
+import { registerRunGame } from '../../lib/games';
 
 vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));
 beforeEach(() => {

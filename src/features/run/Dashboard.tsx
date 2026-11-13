@@ -3,15 +3,17 @@ import { animate } from 'animejs';
 import type { UserData } from '../../types';
 import { addHit, loadUserData } from '../../storage';
 import { getRandomQuote } from '../../quotes';
-import { exportUserData, importUserData, SettingsMenu, confirmImportedData, type ImportedUserData } from '../settings';
+import { SettingsMenu } from '../settings';
+import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from '../../lib/data/transfer';
 import { getSavedTimezone, formatClock } from '../../lib/time';
 import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
 import { PrintCalendar } from '../print';
-import { RunScene, useSceneTrigger } from '../scene';
+import { RunScene } from '../scene';
+import { useSceneTrigger } from '../../lib/scene';
 import { Statistics } from './Statistics';
 import { i18n, useT } from '../../lib/i18n';
-import { loadGameSettings, getRunGame } from '../games';
+import { loadGameSettings, getRunGame } from '../../lib/games';
 import './Dashboard.css';
 
 interface DashboardProps {

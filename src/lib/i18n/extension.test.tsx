@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { i18n } from './index';
 import { getRandomQuote } from '../../quotes';
-import { HitCalendar } from '../../features/run/HitCalendar';
+import { HitCalendar } from '../../features/run';
 import { useDocumentMeta } from '../../app/useDocumentMeta';
 
 vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));

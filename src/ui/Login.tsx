@@ -3,7 +3,7 @@ import { animate } from 'animejs';
 import { i18n, type SupportedLanguage } from '../lib/i18n';
 import { login } from '../auth';
 import { StorageBlockedError } from '../lib/storage';
-import { exportRecoveryData } from '../features/settings/dataManagement';
+import { exportRecoveryData } from '../lib/data/transfer';
 import './Login.css';
 
 interface LoginProps {

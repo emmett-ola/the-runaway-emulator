@@ -1,10 +1,10 @@
 import type { HitLog, UserData, Store } from '../../types';
-import { getSavedTimezone } from '../../lib/time';
+import { getSavedTimezone } from '../time';
 import { getTheme } from '../../darkMode';
-import { getCalendarTheme } from '../../lib/storage/preferences';
-import { readStore, readRecord, writeRecord, readRecoveryStore } from '../../lib/storage';
-import { migrateWithDiagnostics } from '../../lib/storage/migrate';
-import { i18n } from '../../lib/i18n';
+import { getCalendarTheme } from '../storage/preferences';
+import { readStore, readRecord, writeRecord, readRecoveryStore } from '../storage';
+import { migrateWithDiagnostics } from '../storage/migrate';
+import { i18n } from '../i18n';
 
 export type ImportedUserData = UserData & { importSource?: Store };
 

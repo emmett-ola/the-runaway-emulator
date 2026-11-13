@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Settings } from '../features/settings';
-import { exportUserData, importUserData } from '../exportImport';
+import { exportUserData, importUserData } from '../lib/data/transfer';
 import { i18n } from '../lib/i18n';
 import { readRecord, writeRecord } from '../lib/storage';
 

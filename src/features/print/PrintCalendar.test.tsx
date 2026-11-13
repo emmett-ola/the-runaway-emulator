@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/re
 import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { PrintCalendar } from './index';
-import { HitCalendar } from '../run/HitCalendar';
+import { HitCalendar } from '../run';
 import { Settings } from '../settings';
 import { i18n, type SupportedLanguage } from '../../lib/i18n';
 import { writeRecord } from '../../lib/storage';
