@@ -1,13 +1,8 @@
 import { useEffect, useId, useRef } from 'react';
 import type { HitLog } from '../../types';
-import { getSavedTimezone, timestampToDateString } from '../../lib/time';
-import { i18n } from '../../lib/i18n';
-import type { SupportedLanguage } from '../../lib/i18n';
+import { getSavedTimezone, timestampToDateString, formatMonth, formatLongDate } from '../../lib/time';
+import { i18n, useT } from '../../lib/i18n';
 import './PrintCalendar.css';
-
-const LOCALE_TAGS: Record<SupportedLanguage, string> = {
-  en_us: 'en-US', zh_cn: 'zh-CN', zh_tw: 'zh-TW',
-};
 
 export interface PrintCalendarProps {
   hits: HitLog[];
@@ -18,6 +13,7 @@ export interface PrintCalendarProps {
 }
 
 export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone: propTimezone }: PrintCalendarProps) => {
+  useT();
   const titleId = useId();
   const printRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -116,8 +112,7 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
     return 'intensity-4';
   };
 
-  const localeTag = LOCALE_TAGS[i18n.getLanguage()];
-  const monthName = currentMonth.toLocaleDateString(localeTag, { month: 'long', year: 'numeric' });
+  const monthName = formatMonth(currentMonth);
 
   const handlePrint = () => {
     window.print();
@@ -140,11 +135,7 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
               <h1 className="print-title">🏃 {i18n.t('dashboard.brand_title')}</h1>
               <div className="print-user-info">
                 <span className="print-username">{username}</span>
-                <span className="print-date">{new Date().toLocaleDateString(localeTag, {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}</span>
+                <span className="print-date">{formatLongDate(new Date())}</span>
               </div>
             </div>
 

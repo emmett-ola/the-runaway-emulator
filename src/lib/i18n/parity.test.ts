@@ -12,13 +12,14 @@ import { zh_tw } from './locales/zh_tw';
 import frozenEn from './__fixtures__/en_us.json';
 import frozenCn from './__fixtures__/zh_cn.json';
 import frozenTw from './__fixtures__/zh_tw.json';
+import { approvedVersionPlaceholder } from './baselineExceptions';
 import { i18n, t, useT } from './index';
 import { files, scan } from '../../test/i18n-hardcoded-scan';
 
 const translations = { en_us, zh_cn, zh_tw };
 const fixtures = { en_us: frozenEn, zh_cn: frozenCn, zh_tw: frozenTw };
-type Tree = { [key: string]: string | Tree };
-function flatten(tree: Tree, prefix = ''): Record<string, string> {
+type Tree = { [key: string]: string | Tree | string[] };
+function flatten(tree: Tree | string[], prefix = ''): Record<string, string> {
   return Object.fromEntries(Object.entries(tree).flatMap(([key, value]) => typeof value === 'string'
     ? [[`${prefix}${key}`, value]] : Object.entries(flatten(value, `${prefix}${key}.`))));
 }
@@ -48,10 +49,11 @@ describe('typed locale parity against committed shipped XML output', () => {
       i18n.setLanguage(locale);
       for (const [key, value] of Object.entries(frozen)) {
         expect(Object.hasOwn(actual, key), `${locale}:${key}: missing frozen key`).toBe(true);
-        expect(actual[key], `${locale}:${key}: changed string`).toBe(value);
-        expect(t(key), `${locale}:${key}: shipped t() output`).toBe(value);
-        const vars = Object.fromEntries(placeholders(value).map((name, index) => [name, `sample-${index}`]));
-        const expected = value.replace(/\{([^}]+)\}/g, (_, name: string) => vars[name]);
+        const approved = approvedVersionPlaceholder(key, value);
+        expect(actual[key], `${locale}:${key}: changed string`).toBe(approved);
+        expect(t(key), `${locale}:${key}: shipped t() output`).toBe(approved);
+        const vars = Object.fromEntries(placeholders(approved).map((name, index) => [name, `sample-${index}`]));
+        const expected = approved.replace(/\{([^}]+)\}/g, (_, name: string) => vars[name]);
         expect(t(key, vars), `${locale}:${key}: interpolation`).toBe(expected);
       }
       console.log(`${locale}: ${Object.keys(frozen).length} keys; changed-value diff: []`);

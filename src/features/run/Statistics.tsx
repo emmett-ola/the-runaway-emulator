@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { HitLog } from '../../types';
-import { timestampToDateString } from '../../lib/time';
+import { timestampToDateString, hourInTimezone } from '../../lib/time';
 import { i18n, useT } from '../../lib/i18n';
 import './Statistics.css';
 
@@ -57,41 +57,18 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
       if (hit.day >= monthStartKey && hit.day <= todayStr) thisMonth++;
     });
 
-    // Calculate streaks
-    const sortedHits = [...hits].sort((a, b) => b.at - a.at);
-    const uniqueDates = Array.from(new Set(sortedHits.map(h => h.day))).sort().reverse();
-    
+    // Longest is historical; current is only the chain ending today.
+    const uniqueDates = [...new Set(hits.map(hit => hit.day))].sort();
     let currentStreak = 0;
     let longestStreak = 0;
-    let tempStreak = 0;
-    
-    for (let i = 0; i < uniqueDates.length; i++) {
-      const currentDate = new Date(uniqueDates[i]);
-      
-      if (i === 0) {
-        const today = new Date(todayStr);
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        if (uniqueDates[i] === todayStr || uniqueDates[i] === yesterday.toISOString().split('T')[0]) {
-          currentStreak = 1;
-          tempStreak = 1;
-        }
-      } else {
-        const prevDate = new Date(uniqueDates[i - 1]);
-        const dayDiff = Math.floor((prevDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (dayDiff === 1) {
-          tempStreak++;
-          if (i === 1 || currentStreak > 0) {
-            currentStreak = tempStreak;
-          }
-        } else {
-          tempStreak = 1;
-        }
-      }
-      
-      longestStreak = Math.max(longestStreak, tempStreak);
+    let chain = 0;
+    let previousDay = -Infinity;
+    for (const date of uniqueDates) {
+      const day = Date.parse(`${date}T00:00:00Z`) / 86400000;
+      chain = day - previousDay === 1 ? chain + 1 : 1;
+      longestStreak = Math.max(longestStreak, chain);
+      if (date === todayStr) currentStreak = chain;
+      previousDay = day;
     }
 
     // Calculate average per day
@@ -116,7 +93,7 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
     const hourStats: HourStats = {};
     
     hits.forEach(hit => {
-      const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', hourCycle: 'h23' }).format(hit.at));
+      const hour = hourInTimezone(hit.at, timezone);
       hourStats[hour] = (hourStats[hour] || 0) + 1;
     });
     

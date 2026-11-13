@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { zh_cn } from '../lib/i18n/locales/zh_cn';
 import { copy, renderedExpectations as baseline } from './i18n-copy';
 
-type Tree = { [key: string]: string | Tree };
+type Tree = { [key: string]: string | Tree | string[] };
 const parse = (file: string) => ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-function lookup(tree: Tree, path: string): string | Tree | undefined {
-  return path.split('.').reduce<string | Tree | undefined>((value, key) => typeof value === 'object' ? value[key] : undefined, tree);
+function lookup(tree: Tree, path: string): unknown {
+  return path.split('.').reduce<unknown>((value, key) => value && typeof value === 'object' ? (value as Tree)[key] : undefined, tree);
 }
 
 describe('i18n retained component structure and approved copy', () => {
@@ -52,21 +52,17 @@ describe('i18n retained component structure and approved copy', () => {
     for (const rarity of ['common', 'uncommon', 'rare', 'legendary']) expect(text).toContain(`${rarity}: i18n.t('games.rarity_${rarity}')`);
     expect(text).not.toContain('.toUpperCase()');
   });
-  it('Print and Album add no subscriptions; both date formatters use the component language map', () => {
+  it('Print subscribes reactively and delegates both date formats to the locale library; Album adds no manual subscription', () => {
     const hub = readFileSync('src/features/games/GamesHub.tsx', 'utf8');
-    const print = parse('src/features/print/PrintCalendar.tsx');
+    const print = readFileSync('src/features/print/PrintCalendar.tsx', 'utf8');
     expect(hub).not.toContain('onLanguageChange');
-    expect(print.text).not.toContain('onLanguageChange');
-    expect(print.text).toContain('firstDay.getDay()');
-    expect(print.text).toContain('LOCALE_TAGS[i18n.getLanguage()]');
-    const formatters: ts.CallExpression[] = [];
-    function visit(node: ts.Node) {
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'toLocaleDateString') formatters.push(node);
-      ts.forEachChild(node, visit);
-    }
-    visit(print);
-    expect(formatters).toHaveLength(2);
-    for (const call of formatters) expect(call.arguments[0].getText(print)).toBe('localeTag');
+    expect(print).not.toContain('onLanguageChange');
+    expect(print).toContain('useT();');
+    expect(print).toContain('firstDay.getDay()');
+    expect(print).toContain('formatMonth(currentMonth)');
+    expect(print).toContain('formatLongDate(new Date())');
+    expect(print).not.toContain('LOCALE_TAGS');
+    expect(print).not.toContain('toLocaleDateString');
   });
   it('new zh_tw strings use the exact approved Traditional forms, not their Simplified alternatives', () => {
     const text = Object.values(copy).map(values => values.zh_tw).join('\n');

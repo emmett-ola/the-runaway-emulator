@@ -1,3 +1,6 @@
+export { formatDate, formatMonth, formatLongDate, formatNumber, formatClock, hourInTimezone, calendarWeekdays, formatMemberDuration } from './format';
+
+import { i18n, getLocaleMetadata } from '../i18n';
 import { getTimezonePreference, setTimezonePreference } from '../storage/preferences';
 
 // Get list of common timezones
@@ -102,18 +105,15 @@ export const getCurrentTimestamp = (): number => {
 
 // Format date for display in specified timezone
 export const formatDateInTimezone = (timestamp: number, timezone: string, language?: string): string => {
-  const date = new Date(timestamp);
-  const locale = language === 'zh_cn' || language === 'zh_tw' ? 'zh-CN' : 'en-US';
-  
-  return date.toLocaleString(locale, {
+  const metadata = getLocaleMetadata(language ?? i18n.getLanguage());
+  return new Date(timestamp).toLocaleString(metadata.logTag, {
     timeZone: timezone,
     year: 'numeric',
-    month: language === 'zh_cn' || language === 'zh_tw' ? '2-digit' : 'short',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: locale !== 'zh-CN',
+    ...metadata.logOptions,
   });
 };
 

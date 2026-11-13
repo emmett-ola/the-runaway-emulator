@@ -1,55 +1,22 @@
 import { useSyncExternalStore } from 'react';
 import { getLanguagePreference, setLanguagePreference } from '../storage/preferences';
-import { en_us } from './locales/en_us';
-import { zh_cn } from './locales/zh_cn';
-import { zh_tw } from './locales/zh_tw';
-import type { Translations } from './locales/en_us';
-
-export type SupportedLanguage = 'en_us' | 'zh_cn' | 'zh_tw';
+import { locales, languageCodes, resolveLanguage, getLocaleMetadata } from './registry';
+import type { SupportedLanguage } from './registry';
+export type { SupportedLanguage } from './registry';
+export { getLocaleMetadata } from './registry';
 type LanguageChangeCallback = () => void;
 type Variables = Record<string, string | number>;
 
 class I18n {
   private currentLanguage: SupportedLanguage = 'en_us';
-  private translations: Record<SupportedLanguage, Translations> = { en_us, zh_cn, zh_tw };
   private listeners: Set<LanguageChangeCallback> = new Set();
 
   constructor() {
-    const savedLang = getLanguagePreference();
-    if (savedLang && this.isSupportedLanguage(savedLang)) {
-      this.currentLanguage = savedLang;
-      return;
-    }
-    const browserLang = navigator.language.toLowerCase();
-    if (browserLang.includes('zh-cn') || browserLang.includes('zh-sg')) {
-      this.currentLanguage = 'zh_cn';
-    } else if (browserLang.includes('zh-tw') || browserLang.includes('zh-hk')) {
-      this.currentLanguage = 'zh_tw';
-    }
-  }
-
-  private isSupportedLanguage(lang: string): lang is SupportedLanguage {
-    return Object.keys(this.translations).includes(lang);
+    this.currentLanguage = resolveLanguage(getLanguagePreference() || navigator.language);
   }
 
   public setLanguage(lang: string): void {
-    let normalizedLang: SupportedLanguage;
-    switch (lang) {
-      case 'en':
-      case 'en_us':
-        normalizedLang = 'en_us';
-        break;
-      case 'zh':
-      case 'zh_cn':
-        normalizedLang = 'zh_cn';
-        break;
-      case 'zh_tw':
-      case 'zh_hk':
-        normalizedLang = 'zh_tw';
-        break;
-      default:
-        normalizedLang = 'en_us';
-    }
+    const normalizedLang = resolveLanguage(lang);
     if (this.currentLanguage !== normalizedLang) {
       this.currentLanguage = normalizedLang;
       setLanguagePreference(normalizedLang);
@@ -74,7 +41,7 @@ class I18n {
 
   // Missing keys/non-string branches return their path, as in the shipped API.
   public t(path: string, params: Variables = {}): string {
-    let value: unknown = this.translations[this.currentLanguage];
+    let value: unknown = locales[this.currentLanguage].translations;
     for (const key of path.split('.')) {
       if (value && typeof value === 'object' && key in value) {
         value = (value as Record<string, unknown>)[key];
@@ -91,11 +58,15 @@ class I18n {
   }
 
   public getSupportedLanguages(): { code: SupportedLanguage; name: string }[] {
-    return [
-      { code: 'en_us', name: 'English (US)' },
-      { code: 'zh_cn', name: '中文 (简体)' },
-      { code: 'zh_tw', name: '中文 (繁体)' },
-    ];
+    return languageCodes.map(code => ({ code, name: locales[code].metadata.name }));
+  }
+
+  public getQuotes(): readonly string[] {
+    return locales[this.currentLanguage].translations.quotes;
+  }
+
+  public getMetadata() {
+    return getLocaleMetadata(this.currentLanguage);
   }
 }
 

@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
+import { approvedVersionPlaceholder } from '../lib/i18n/baselineExceptions';
 import { describe, expect, it } from 'vitest';
 import { en_us } from '../lib/i18n/locales/en_us';
 import { zh_cn } from '../lib/i18n/locales/zh_cn';
@@ -9,7 +10,7 @@ import { zh_tw } from '../lib/i18n/locales/zh_tw';
 
 const translations = { en_us, zh_cn, zh_tw };
 const sourceRoot = resolve('src');
-type Translation = { [key: string]: string | Translation };
+type Translation = { [key: string]: string | Translation | string[] };
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const path = resolve(directory, entry.name);
@@ -43,12 +44,12 @@ function lookup(object: Translation, path: string): unknown {
       ? (value as Translation)[key] : undefined, object);
 }
 
-function expectFrozenBaseline(actual: Translation, frozen: Translation, prefix = ''): void {
+function expectFrozenBaseline(actual: Translation, frozen: Translation | string[], prefix = ''): void {
   for (const [key, value] of Object.entries(frozen)) {
     const path = `${prefix}${key}`;
     if (typeof value === 'string') {
       expect(lookup(actual, path), `${path}: missing frozen key`).not.toBeUndefined();
-      expect(lookup(actual, path), `${path}: changed frozen string`).toBe(value);
+      expect(lookup(actual, path), `${path}: changed frozen string`).toBe(approvedVersionPlaceholder(path, value));
     } else {
       expectFrozenBaseline(actual, value, `${path}.`);
     }

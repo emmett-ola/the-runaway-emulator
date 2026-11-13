@@ -3,10 +3,17 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it } from 'vitest';
 import { About, Releases } from './index';
 import { i18n } from '../../lib/i18n';
+import { version } from '../../lib/version';
+import { readFileSync } from 'node:fs';
 afterEach(cleanup);
 it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('links About to localized dated release history without a false latest badge in %s', locale => {
   i18n.setLanguage(locale);
   const about = render(<MemoryRouter><About /></MemoryRouter>);
+  expect(version).toBe('1.2.0');
+  expect(version).toBe(JSON.parse(readFileSync('package.json', 'utf8')).version);
+  expect(about.container).toHaveTextContent(i18n.t('releases.version', { version }));
+  expect(i18n.t('settings.version', { version })).toContain(version);
+  expect(about.container).not.toHaveTextContent('1.0.0');
   expect(screen.getByRole('link', { name: i18n.t('releases.title') })).toHaveAttribute('href', '/releases');
   about.unmount();
   const { container } = render(<MemoryRouter initialEntries={['/releases']}><Releases /></MemoryRouter>);

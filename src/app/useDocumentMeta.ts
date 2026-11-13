@@ -6,6 +6,7 @@ export function useDocumentMeta() {
   useEffect(() => {
     const updateMetaInfo = () => {
       document.title = i18n.t('meta.title');
+      document.documentElement.lang = i18n.getMetadata().tag;
 
       const descriptionMeta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
       if (descriptionMeta) {

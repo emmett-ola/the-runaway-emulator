@@ -6,6 +6,7 @@ import { getGravatarUrl } from './gravatar';
 import { formatMemberSince } from './memberSince';
 import type { UserData } from '../../types';
 import { i18n, useT } from '../../lib/i18n';
+import { formatLongDate } from '../../lib/time';
 import './Profile.css';
 
 export const Profile = () => {
@@ -67,12 +68,7 @@ export const Profile = () => {
   const avatarUrl = getGravatarUrl(userData.profile?.email, 200, username);
   const registeredAt = userData.registeredAt;
   const memberSince = formatMemberSince(registeredAt);
-  const locale = { en_us: 'en-US', zh_cn: 'zh-CN', zh_tw: 'zh-TW' }[i18n.getLanguage()];
-  const joinDate = new Date(registeredAt).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const joinDate = formatLongDate(registeredAt);
 
   return (
     <Layout username={username} onLogout={handleLogout}>

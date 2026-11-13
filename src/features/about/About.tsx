@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
 import { i18n, useT } from '../../lib/i18n';
-import { version } from '../../../package.json';
+import { version } from '../../lib/version';
 import '../../ui/SettingsLayout.css';
 
 export const About = () => {

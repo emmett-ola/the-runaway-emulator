@@ -1,4 +1,29 @@
+import type { LocaleMetadata } from '../metadata';
+
 export const en_us = {
+  "quotes": [
+    "The only impossible journey is the one you never begin.",
+    "Life is either a daring adventure or nothing at all.",
+    "Don't be pushed by your problems. Be led by your dreams.",
+    "The biggest adventure you can take is to live the life of your dreams.",
+    "Your time is limited, don't waste it living someone else's life.",
+    "The only way to do great work is to love what you do.",
+    "Life is too short to be stuck in a job you hate.",
+    "Dream big, work hard, stay focused, and surround yourself with good people.",
+    "The future belongs to those who believe in the beauty of their dreams.",
+    "Don't count the days, make the days count.",
+    "Life begins at the end of your comfort zone.",
+    "The world is a book, and those who do not travel read only one page.",
+    "Jobs fill your pocket, but adventures fill your soul.",
+    "Escape the ordinary, embrace the extraordinary.",
+    "Your dreams don't have an expiration date. Take a deep breath and try again.",
+    "Sometimes you need to step outside, get some air, and remind yourself of who you are.",
+    "The cave you fear to enter holds the treasure you seek.",
+    "Life is short. Break the rules, forgive quickly, kiss slowly, love truly.",
+    "Twenty years from now you will be more disappointed by the things you didn't do.",
+    "The only person you are destined to become is the person you decide to be.",
+  ],
+  "calendar": { "day_one": "{date}: {count} escape dream", "day_many": "{date}: {count} escape dreams" },
   "surface_error": { "title": "This page could not be displayed.", "retry": "Try again" },
   "releases": {
     "title": "Release Notes", "subtitle": "What's new in RunawayLog",
@@ -236,7 +261,7 @@ export const en_us = {
     "about_description": "Track your runaway dreams! Every click represents a moment when you wanted to run away from work and do something more meaningful.",
     "built_with": "Built with ❤️ using React, TypeScript, and Vite",
     "powered_by": "Powered by <strong>Ona</strong>, the AI software engineering agent",
-    "version": "Version 1.1.0 • MIT License • © 2025",
+    "version": "Version {version} • MIT License • © 2025",
     "regional_settings": "🌍 Regional Settings",
     "appearance_settings": "🎨 Appearance Settings",
     "local_storage": "Local Storage",
@@ -260,3 +285,8 @@ export const en_us = {
 };
 
 export type Translations = typeof en_us;
+
+export const metadata: LocaleMetadata = {
+  tag: 'en-US', name: 'English (US)', aliases: ['en', 'en-us'],
+  calendarWeekdayLength: 3, logTag: 'en-US', logOptions: { month: 'short', hour12: true },
+};

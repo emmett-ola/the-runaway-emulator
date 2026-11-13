@@ -3,16 +3,15 @@ import { animate } from 'animejs';
 import type { UserData } from '../../types';
 import { addHit, loadUserData } from '../../storage';
 import { getRandomQuote } from '../../quotes';
-import { exportUserData, importUserData, SettingsMenu } from '../settings';
-import { confirmImportedData, type ImportedUserData } from '../settings/dataManagement';
-import { getSavedTimezone } from '../../lib/time';
+import { exportUserData, importUserData, SettingsMenu, confirmImportedData, type ImportedUserData } from '../settings';
+import { getSavedTimezone, formatClock } from '../../lib/time';
 import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
 import { PrintCalendar } from '../print';
 import { RunScene, useSceneTrigger } from '../scene';
 import { Statistics } from './Statistics';
 import { i18n, useT } from '../../lib/i18n';
-import { loadGameSettings } from '../games';
+import { loadGameSettings, getRunGame } from '../games';
 import './Dashboard.css';
 
 interface DashboardProps {
@@ -34,11 +33,14 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timezone, setTimezone] = useState<string>(() => getSavedTimezone());
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [gameSettings, setGameSettings] = useState<{ forkInTheRoadEnabled?: boolean }>({ forkInTheRoadEnabled: false });
-  const [correctButtonIndex, setCorrectButtonIndex] = useState(() => Math.floor(Math.random() * 3));
+  const [runSession, setRunSession] = useState(() => {
+    const game = getRunGame({});
+    return { game, round: game.createRound() };
+  });
+  const { round } = runSession;
+  const nextRound = () => setRunSession(previous => ({ ...previous, round: previous.game.createRound() }));
   const [sceneOpen, setSceneOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([null, null, null]);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -58,9 +60,6 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
       const data = await loadUserData(username);
       if (data) {
         setUserData(data);
-        if (data.settings?.games) {
-          setGameSettings(data.settings.games);
-        }
       }
     };
 
@@ -68,13 +67,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   }, [username]);
 
   // Format current time using user's timezone (24-hour format)
-  const formattedTime = currentTime.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: timezone
-  });
+  const formattedTime = formatClock(currentTime, timezone);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -99,7 +92,8 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   useEffect(() => {
     const fetchGameSettings = async () => {
       try {
-        setGameSettings(await loadGameSettings(username));
+        const game = getRunGame(await loadGameSettings(username));
+        setRunSession(previous => previous.game === game ? previous : { game, round: game.createRound() });
       } catch (error) {
         console.error('Failed to load game settings:', error);
       }
@@ -108,20 +102,16 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     fetchGameSettings();
   }, [username, userData]);
 
-  const handleHit = (buttonIndex?: number) => {
+  const handleHit = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const buttonIndex = Number(event.currentTarget.dataset.controlIndex);
     if (animationLock.current) return;
     animationLock.current = true;
     setIsAnimating(true);
-    
-    // Check if Fork in the Road game is enabled
-    const isForkGameEnabled = gameSettings.forkInTheRoadEnabled;
-    const isCorrectButton = isForkGameEnabled ? buttonIndex === correctButtonIndex : true;
-    
-    // Easter egg: 0.6% chance for boom animation
+    const outcome = round.resolve(round.controls[buttonIndex].id);
+
+    // Easter egg takes precedence over every game's outcome.
     const isBoom = Math.random() < 0.006;
-    
-    // Determine which button to animate
-    const targetButton = isForkGameEnabled ? buttonRefs.current[buttonIndex || 0] : buttonRef.current;
+    const targetButton = buttonRefs.current[buttonIndex];
     
     if (targetButton) {
       if (isBoom) {
@@ -177,10 +167,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
         setQuote(i18n.t('easter_eggs.boom_quote'));
         
         setTimeout(() => { animationLock.current = false; setIsAnimating(false); }, 800);
-        // Reset correct button index for next attempt if Fork game is enabled
-        if (isForkGameEnabled) {
-          setCorrectButtonIndex(Math.floor(Math.random() * 3));
-        }
+        nextRound();
         return; // Don't record this hit
       }
 
@@ -235,7 +222,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
         runner.style.opacity = '0';
       }
       
-      if (isForkGameEnabled && !isCorrectButton) {
+      if (outcome.wrongAnimation) {
         // Failed attempt: up and down shake animation
         animate(runner, {
           translateY: [0, -10, 10, -10, 10, 0],
@@ -304,7 +291,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     }
 
     let hitRecorded = false;
-    const hitSaved = isCorrectButton ? (async () => {
+    const hitSaved = outcome.count ? (async () => {
       const newHit = await addHit(username);
       if (newHit) {
         hitRecorded = true;
@@ -317,18 +304,14 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
       await hitSaved;
       animationLock.current = false;
       setIsAnimating(false);
-      if (hitRecorded && claimScene()) {
+      if (hitRecorded && outcome.scene && claimScene()) {
         sceneTriggerRef.current = targetButton ?? null;
         setSceneOpen(true);
       }
     }, 600);
     
-    // Reset correct button index for next attempt if Fork game is enabled
-    if (isForkGameEnabled) {
-      setTimeout(() => {
-        setCorrectButtonIndex(Math.floor(Math.random() * 3));
-      }, 600);
-    }
+    // Each game owns the next round's options and outcome policy.
+    setTimeout(() => nextRound(), 600);
   };
 
   const handleExport = () => {
@@ -446,47 +429,21 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
         <div className="hit-section">
           <h2 className="section-title">{formattedTime}</h2>
           
-          {gameSettings.forkInTheRoadEnabled ? (
-            <div className="fork-buttons-container">
+          <div className={round.containerClassName}>
+            {round.controls.map((control, index) => (
               <button
-                ref={(el) => { buttonRefs.current[0] = el; }}
-                onClick={() => handleHit(0)}
-                className="hit-button fork-button left"
+                key={control.id}
+                ref={element => { buttonRefs.current[index] = element; }}
+                data-control-index={index}
+                onClick={handleHit}
+                className={`hit-button${control.className ? ` ${control.className}` : ''}`}
                 disabled={isAnimating}
               >
-                <span className="hit-button-text">{i18n.t('dashboard.run_button')}</span>
+                <span className="hit-button-text">{i18n.t(control.labelKey)}</span>
                 <span className="hit-button-icon">🏃</span>
               </button>
-              <button
-                ref={(el) => { buttonRefs.current[1] = el; }}
-                onClick={() => handleHit(1)}
-                className="hit-button fork-button middle"
-                disabled={isAnimating}
-              >
-                <span className="hit-button-text">{i18n.t('dashboard.run_button')}</span>
-                <span className="hit-button-icon">🏃</span>
-              </button>
-              <button
-                ref={(el) => { buttonRefs.current[2] = el; }}
-                onClick={() => handleHit(2)}
-                className="hit-button fork-button right"
-                disabled={isAnimating}
-              >
-                <span className="hit-button-text">{i18n.t('dashboard.run_button')}</span>
-                <span className="hit-button-icon">🏃</span>
-              </button>
-            </div>
-          ) : (
-            <button
-              ref={buttonRef}
-              onClick={() => handleHit()}
-              className="hit-button"
-              disabled={isAnimating}
-            >
-              <span className="hit-button-text">{i18n.t('dashboard.run_button')}</span>
-              <span className="hit-button-icon">🏃</span>
-            </button>
-          )}
+            ))}
+          </div>
           
           <p className="motivational-quote">"{quote}"</p>
           <p className="hit-count" dangerouslySetInnerHTML={{ __html: i18n.t('dashboard.hit_count', { count: userData.hits.length }) }} />

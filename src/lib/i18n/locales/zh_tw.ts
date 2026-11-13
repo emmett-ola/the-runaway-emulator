@@ -1,6 +1,30 @@
 import type { Translations } from './en_us';
+import type { LocaleMetadata } from '../metadata';
 
 export const zh_tw = {
+  "quotes": [
+    "生活不是等待風暴過去，而是學會在雨中跳舞。",
+    "真正的自由，是勇敢地去做你熱愛的事。",
+    "夢想從不是奢侈品，而是生活的必需品。",
+    "不要讓別人的眼光，成為你前行的枷鎖。",
+    "人生最精彩的不是實現夢想的瞬間，而是堅持夢想的過程。",
+    "每一次跑路，都是對生活的一次重新定義。",
+    "勇敢地跳出舒適圈，你會發現更廣闊的天地。",
+    "生活不只有眼前的苟且，還有詩和遠方。",
+    "別讓日復一日的重複，磨平了你的棱角和夢想。",
+    "有時候，逃離也是一種智慧，一種對更好生活的追求。",
+    "人生太短，要把時間浪費在美好的事物上。",
+    "你的人生，應該由你自己書寫。",
+    "夢想像星星，即使摸不到，也能指引你前行。",
+    "不要被所謂的\"穩定\"，束縛了你探索世界的腳步。",
+    "每一次選擇，都是一次新的開始。",
+    "生活的意義，在於不斷追求和突破自我。",
+    "勇敢地做自己，這是世界上最勇敢的事。",
+    "未來的你，一定會感謝現在勇敢的自己。",
+    "生命只有一次，要活成自己喜歡的樣子。",
+    "跑路，不是逃避，而是尋找更適合自己的生活方式。",
+  ],
+  "calendar": { "day_one": "{date}：{count} 個跑路夢想", "day_many": "{date}：{count} 個跑路夢想" },
   "surface_error": { "title": "無法顯示此頁面。", "retry": "重試" },
   "releases": {
     "title": "更新日誌", "subtitle": "跑路日誌的新變化",
@@ -238,7 +262,7 @@ export const zh_tw = {
     "about_description": "記錄你的跑路夢想！每次點擊代表你想要逃離工作，去做更有意義的事情的時刻。",
     "built_with": "使用 React、TypeScript 和 Vite 構建 ❤️",
     "powered_by": "由 <strong>Ona</strong> AI 軟件工程代理驅動",
-    "version": "版本 1.1.0 • MIT 許可證 • © 2025",
+    "version": "版本 {version} • MIT 許可證 • © 2025",
     "regional_settings": "🌍 區域設定",
     "appearance_settings": "🎨 外觀設定",
     "local_storage": "本地儲存",
@@ -260,3 +284,8 @@ export const zh_tw = {
     "close": "回到這裡。"
   }
 } satisfies Translations;
+
+export const metadata: LocaleMetadata = {
+  tag: 'zh-TW', name: '中文 (繁体)', aliases: ['zh-tw', 'zh-hk'],
+  calendarWeekdayLength: 1, logTag: 'zh-CN', logOptions: { month: '2-digit', hour12: false },
+};

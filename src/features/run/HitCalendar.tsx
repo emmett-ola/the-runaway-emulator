@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { animate, stagger } from 'animejs';
 import type { HitLog } from '../../types';
-import { getSavedTimezone, timestampToDateString } from '../../lib/time';
+import { getSavedTimezone, timestampToDateString, formatMonth, calendarWeekdays, formatNumber } from '../../lib/time';
 import { i18n, useT } from '../../lib/i18n';
 import './HitCalendar.css';
 
@@ -92,7 +92,7 @@ export const HitCalendar = ({ hits, currentMonth: propCurrentMonth, onMonthChang
     setCurrentMonth(new Date());
   };
 
-  const monthName = currentMonth.toLocaleDateString(i18n.getLanguage() === 'zh_cn' || i18n.getLanguage() === 'zh_tw' ? 'zh-CN' : 'en-US', { month: 'long', year: 'numeric' });
+  const monthName = formatMonth(currentMonth);
 
   const getIntensity = (count: number) => {
     if (count === 0) return 'intensity-0';
@@ -113,13 +113,7 @@ export const HitCalendar = ({ hits, currentMonth: propCurrentMonth, onMonthChang
       <button onClick={goToToday} className="calendar-today-btn">{i18n.t('statistics.today')}</button>
       
       <div className="calendar-weekdays">
-        <div className="weekday">{i18n.t('statistics.sunday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
-        <div className="weekday">{i18n.t('statistics.monday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
-        <div className="weekday">{i18n.t('statistics.tuesday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
-        <div className="weekday">{i18n.t('statistics.wednesday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
-        <div className="weekday">{i18n.t('statistics.thursday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
-        <div className="weekday">{i18n.t('statistics.friday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
-        <div className="weekday">{i18n.t('statistics.saturday').substring(0, i18n.getLanguage().startsWith('zh') ? 1 : 3)}</div>
+        {calendarWeekdays().map((day, index) => <div className="weekday" key={index}>{day}</div>)}
       </div>
       
       <div className="calendar-grid">
@@ -130,7 +124,7 @@ export const HitCalendar = ({ hits, currentMonth: propCurrentMonth, onMonthChang
             <div
               key={index}
               className={`calendar-day ${getIntensity(day.count)}`}
-              title={`${day.date}: ${day.count} escape dream${day.count !== 1 ? 's' : ''}`}
+              title={i18n.t(`calendar.day_${day.count === 1 ? 'one' : 'many'}`, { date: day.date, count: formatNumber(day.count) })}
             >
               <span className="day-number">{day.day}</span>
               {day.count > 0 && <span className="day-count">{day.count}</span>}
