@@ -46,6 +46,30 @@ const interceptPointer = async (intercept: (tx: IDBTransaction, operation: IDBRe
 };
 
 describe('publication completion and revision fences', () => {
+  it('keeps the previous committed generation readable after reload when interrupted before pointer publication', async () => {
+    const id = await create();
+    await appendHit(id, { id: 'already-committed', at: 0, schemaVersion: 1, recordVersion: '1', extra: [null, '雪'] });
+    const before = await readCurrent(), record = await readFullRecord(id);
+    const base = await currentGeneration();
+    const manifest = await readFile<Manifest>(base, 'manifest.json');
+    const extensions = await readFile<unknown>(base, 'shared/extensions.json');
+    const candidate = await buildCandidate(base, new Map([['shared/extensions.json', await makeBlob({ unpublished: true }, String(BigInt(base.revision) + 1n))]]), manifest.deviceId);
+    await prepare(candidate); await verifyPrepared(candidate);
+    expect((await getGeneration(candidate.generation.id)).state).toBe('staged');
+    expect(await readCurrent()).toEqual(before);
+
+    // Simulate stopping after verified staging: never invoke the pointer transaction.
+    // Closing/reopening fake-IDB tests restart visibility, not physical power loss.
+    await resetStorage(); await initializeStorage();
+    expect(await readCurrent()).toEqual(before);
+    expect((await currentGeneration()).id).toBe(base.id);
+    expect(await readFullRecord(id)).toEqual(record);
+    expect(getAccountSnapshot(id)?.total).toBe(1);
+    expect(await readFile<unknown>(await currentGeneration(), 'shared/extensions.json')).toEqual(extensions);
+    expect((await getGeneration(candidate.generation.id)).state).toBe('staged');
+    expect(await readFile<unknown>(candidate.generation, 'shared/extensions.json')).toEqual({ unpublished: true });
+  });
+
   it('rejects a command if the pointer transaction aborts after put success, without publishing a snapshot', async () => {
     const id = await create();
     const before = await readCurrent(), snapshot = getStoreSnapshot(), state = getStorageState();
