@@ -15,7 +15,7 @@ describe('persistence API ownership', () => {
       if (file.includes('/lib/storage/') || file.includes('/test/')) continue;
       const source = readFileSync(file, 'utf8');
       expect(source, file).not.toMatch(/\b(?:indexedDB|IDBFactory|IDBDatabase|IDBTransaction|IDBObjectStore)\b/);
-      expect(source, file).not.toMatch(/\blocalStorage\s*[.[]/);
+      expect(source, file).not.toMatch(/\b(?:localStorage|sessionStorage)\s*[.[]/);
     }
   });
   it('keeps library storage adapters pointing inward without app/feature imports', () => {

@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
 import { approvedVersionPlaceholder } from '../lib/i18n/baselineExceptions';
+import { approvedLoginChanges } from './login-copy';
 import { describe, expect, it } from 'vitest';
 import { en_us } from '../lib/i18n/locales/en_us';
 import { zh_cn } from '../lib/i18n/locales/zh_cn';
@@ -44,27 +45,27 @@ function lookup(object: Translation, path: string): unknown {
       ? (value as Translation)[key] : undefined, object);
 }
 
-function expectFrozenBaseline(actual: Translation, frozen: Translation | string[], prefix = ''): void {
+function expectFrozenBaseline(actual: Translation, frozen: Translation | string[], locale: string, prefix = ''): void {
   for (const [key, value] of Object.entries(frozen)) {
     const path = `${prefix}${key}`;
     if (typeof value === 'string') {
       expect(lookup(actual, path), `${path}: missing frozen key`).not.toBeUndefined();
-      expect(lookup(actual, path), `${path}: changed frozen string`).toBe(approvedVersionPlaceholder(path, value));
+      expect(lookup(actual, path), `${path}: changed frozen string`).toBe(approvedLoginChanges[locale]?.[path] ?? approvedVersionPlaceholder(path, value));
     } else {
-      expectFrozenBaseline(actual, value, `${path}.`);
+      expectFrozenBaseline(actual, value, locale, `${path}.`);
     }
   }
 }
 
 describe('i18n shipped fixture parity', () => {
   for (const [locale, translation] of Object.entries(translations)) {
-    it(`${locale}: frozen baseline subset matches exactly${locale === 'en_us' ? ' and rejects a mutated string' : ''}`, () => {
+    it(`${locale}: frozen baseline matches with exact authorized local-password copy changes${locale === 'en_us' ? ' and rejects a mutated string' : ''}`, () => {
       const frozen: Translation = JSON.parse(readFileSync(resolve(sourceRoot, 'lib/i18n/__fixtures__', `${locale}.json`), 'utf8'));
-      expectFrozenBaseline(translation, frozen);
+      expectFrozenBaseline(translation, frozen, locale);
       if (locale === 'en_us') {
         const alteredFrozen: Translation & { dashboard: { title: string } } = JSON.parse(JSON.stringify(frozen));
         alteredFrozen.dashboard.title += ' [mutated frozen baseline]';
-        expect(() => expectFrozenBaseline(translation, alteredFrozen)).toThrow();
+        expect(() => expectFrozenBaseline(translation, alteredFrozen, locale)).toThrow();
       }
       for (const path of ['dashboard.hit_count', 'import_dialog.warning']) {
         expect(typeof lookup(translation, path)).toBe('string');

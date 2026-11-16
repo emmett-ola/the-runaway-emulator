@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { readIdentityCache, removeIdentityCache, writeIdentityCache } from '../lib/storage/preferences';
+import { readIdentityCache, removeIdentityCache, writeIdentityCache, clearObsoleteAuthCache } from '../lib/storage/preferences';
 
-export const getSessionUsername = (): string | null => readIdentityCache('username');
+export const getSessionUsername = (): string | null => { clearObsoleteAuthCache(); return readIdentityCache('username'); };
 export const clearSession = (): void => {
   removeIdentityCache('username');
   removeIdentityCache('currentUser');
-  removeIdentityCache('token');
+  clearObsoleteAuthCache();
 };
 
 export function useSession() {

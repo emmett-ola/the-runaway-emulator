@@ -8,6 +8,9 @@ import { blockStorage, getAccountSnapshot, getStorageState, hydrateAccount, publ
 import type { Directory, GamesPayload, Identity } from './snapshot';
 import { getPreferencesSnapshot, publishPreferences, validatePreferences } from './preferences';
 import { validateDirectory } from './envelope-validation';
+import type { CredentialRecord } from '../identity/password';
+import { LocalAuthError } from '../identity/password';
+import type { CredentialChange } from './credential-commit';
 
 let queue: Promise<void> = Promise.resolve();
 let afterCommit: (() => void) | undefined;
@@ -18,7 +21,7 @@ export const serializeStorageOperation = <T>(operation: () => Promise<T>): Promi
   queue = result.then(() => undefined, () => undefined);
   return result;
 };
-type Intent = (base: Generation | null, revision: string) => Promise<{ changes: Map<string, BlobRecord | null>; accountId?: string; fullValidation?: boolean }>;
+type Intent = (base: Generation | null, revision: string) => Promise<{ changes: Map<string, BlobRecord | null>; accountId?: string; fullValidation?: boolean; credentialChange?: CredentialChange }>;
 const fatal = (error: unknown): boolean => error instanceof StorageError && ['integrity', 'descriptor', 'manifest-digest', 'missing-file', 'missing-blob', 'membership', 'index', 'ownership', 'index-descriptor', 'current'].includes(error.code);
 export const enqueue = (intent: Intent): Promise<CommitReceipt> => {
   return serializeStorageOperation(async () => {
@@ -45,6 +48,7 @@ export const enqueue = (intent: Intent): Promise<CommitReceipt> => {
           const result = await intent(base, revision);
           const candidate = await buildCandidate(base, result.changes, await getDeviceId() ?? crypto.randomUUID());
           candidate.fullValidation = result.fullValidation;
+          candidate.credentialChange = result.credentialChange;
           await publishCandidate(candidate);
           return { candidate, accountId: result.accountId };
         };
@@ -69,7 +73,7 @@ export const enqueue = (intent: Intent): Promise<CommitReceipt> => {
 export const flushWrites = (): Promise<void> => queue;
 export const resetQueue = (): void => { queue = Promise.resolve(); afterCommit = undefined; };
 export const envelope = <T>(id: string, payload: T, revision: string, now = Date.now()): Envelope<T> => ({ accountId: id, schemaVersion: 1, recordVersion: revision, createdAt: now, updatedAt: now, payload });
-export const createAccount = (handle: string, profile: UserProfile = {}): Promise<CommitReceipt> => {
+export const createAccount = (handle: string, profile: UserProfile = {}, credential?: CredentialRecord): Promise<CommitReceipt> => {
   const id = crypto.randomUUID();
   const registeredAt = Date.now();
   if (!handle.trim()) return Promise.reject(new StorageError('handle', 'A local handle is required.'));
@@ -77,7 +81,10 @@ export const createAccount = (handle: string, profile: UserProfile = {}): Promis
     const changes = new Map<string, BlobRecord | null>();
     const directory: Directory = base ? await readFile(base, 'shared/accounts.json') : { schemaVersion: 1, recordVersion: revision, accounts: [] };
     const existing = directory.accounts.find(account => account.handle === handle);
-    if (existing) return { changes, accountId: existing.accountId };
+    if (existing) {
+      if (credential) throw new LocalAuthError('identity_changed');
+      return { changes, accountId: existing.accountId };
+    }
     if (directory.accounts.some(account => account.accountId === id)) throw new StorageError('collision', 'Account UUID collision; retry account creation.');
     const root = accountPath(id);
     const identity: Identity = { handle, registeredAt, extensions: {} };
@@ -91,7 +98,7 @@ export const createAccount = (handle: string, profile: UserProfile = {}): Promis
     ];
     if (!base) files.push(['shared/extensions.json', {}], ['shared/export-metadata.json', {}], ['device/preferences.json', getPreferencesSnapshot()]);
     for (const [path, value] of files) changes.set(path, await makeBlob(value, revision));
-    return { changes, accountId: id };
+    return { changes, accountId: id, ...(credential ? { credentialChange: { accountId: id, expected: null, next: structuredClone(credential) } } : {}) };
   });
 };
 export const resolveAccount = async (base: Generation | null, id: string) => {

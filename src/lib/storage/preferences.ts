@@ -43,10 +43,14 @@ export const setStorageMode = async (mode: StorageMode): Promise<void> => {
   await changePreferences({ mode: 'local' });
 };
 
-// Demo identity is tab-scoped and separate from virtual/export files and obsolete keys.
-type IdentityCache = 'token' | 'currentUser' | 'credentials' | 'username';
+// Only identity is tab-scoped. Password-derived material never enters this cache.
+type IdentityCache = 'currentUser' | 'username';
 const key = (cache: IdentityCache): string => `runawaylog-v2-session-${cache}`;
 export const readIdentityCache = (cache: IdentityCache): string | null => sessionStorage.getItem(key(cache));
 export const writeIdentityCache = (cache: IdentityCache, value: string): void => sessionStorage.setItem(key(cache), value);
 export const removeIdentityCache = (cache: IdentityCache): void => sessionStorage.removeItem(key(cache));
+export const clearObsoleteAuthCache = (): void => {
+  sessionStorage.removeItem('runawaylog-v2-session-credentials');
+  sessionStorage.removeItem('runawaylog-v2-session-token');
+};
 export const resetPreferences = (): void => { persist = undefined; preferences = Object.freeze(defaultPreferences()); };

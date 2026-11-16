@@ -13,6 +13,7 @@ import frozenEn from './__fixtures__/en_us.json';
 import frozenCn from './__fixtures__/zh_cn.json';
 import frozenTw from './__fixtures__/zh_tw.json';
 import { approvedVersionPlaceholder } from './baselineExceptions';
+import { approvedLoginChanges } from '../../test/login-copy';
 import { i18n, t, useT } from './index';
 import { files, scan } from '../../test/i18n-hardcoded-scan';
 import { readPreferences } from '../storage';
@@ -42,7 +43,7 @@ describe('typed locale parity against committed shipped XML output', () => {
   for (const locale of ['en_us', 'zh_cn', 'zh_tw'] as const) {
     const actual = flatten(translations[locale]);
     const frozen = flatten(fixtures[locale]);
-    it(`${locale}: identical full locale key paths and placeholders, with every frozen baseline string byte preserved`, async () => {
+    it(`${locale}: identical full locale key paths and placeholders, preserving frozen strings except exact authorized login copy`, async () => {
       expect(Object.keys(actual).sort(), `${locale}: missing/extra key paths`).toEqual(Object.keys(english).sort());
       for (const [key, value] of Object.entries(actual)) {
         expect(placeholders(value), `${locale}:${key}: placeholders`).toEqual(placeholders(english[key]));
@@ -50,14 +51,14 @@ describe('typed locale parity against committed shipped XML output', () => {
       await i18n.setLanguage(locale);
       for (const [key, value] of Object.entries(frozen)) {
         expect(Object.hasOwn(actual, key), `${locale}:${key}: missing frozen key`).toBe(true);
-        const approved = approvedVersionPlaceholder(key, value);
+        const approved = approvedLoginChanges[locale]?.[key] ?? approvedVersionPlaceholder(key, value);
         expect(actual[key], `${locale}:${key}: changed string`).toBe(approved);
         expect(t(key), `${locale}:${key}: shipped t() output`).toBe(approved);
         const vars = Object.fromEntries(placeholders(approved).map((name, index) => [name, `sample-${index}`]));
         const expected = approved.replace(/\{([^}]+)\}/g, (_, name: string) => vars[name]);
         expect(t(key, vars), `${locale}:${key}: interpolation`).toBe(expected);
       }
-      console.log(`${locale}: ${Object.keys(frozen).length} keys; changed-value diff: []`);
+      console.log(`${locale}: ${Object.keys(frozen).length} frozen keys; exactly 3 authorized login-copy replacements`);
     });
     it(`${locale}: CJK / untranslated proper noun contract`, () => {
       if (locale === 'en_us') {

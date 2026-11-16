@@ -3,7 +3,7 @@ import { createStorageAdapter, getStorageMode, setStorageMode, LocalStorageAdapt
 import { getTheme, setTheme } from '../../darkMode';
 import { getSavedTimezone, saveTimezone } from '../time';
 import { createAccount, initializeStorage, readPreferences, resetStorage } from './index';
-import { getCalendarTheme, setCalendarTheme, readIdentityCache, writeIdentityCache, removeIdentityCache, getLanguagePreference, setLanguagePreference } from './preferences';
+import { getCalendarTheme, setCalendarTheme, readIdentityCache, writeIdentityCache, removeIdentityCache, clearObsoleteAuthCache, getLanguagePreference, setLanguagePreference } from './preferences';
 
 beforeEach(() => {
   localStorage.clear();
@@ -28,25 +28,27 @@ describe('device preference persistence', () => {
     expect(localStorage.getItem('app-language')).toBe('obsolete');
   });
 
-  it('preserves opaque demo-identity cache bytes without changing keys or semantics', () => {
-    const bytes = '{"token":"demo","expiresAt":42}';
+  it('retains only tab identity and removes historical credential/token caches without reading obsolete local keys', () => {
     localStorage.setItem('runawaylog-token', 'obsolete token');
     localStorage.setItem('runawaylog-current-user', 'obsolete identity');
     localStorage.setItem('runawaylog-credentials', 'obsolete credentials');
-    writeIdentityCache('token', bytes);
+    sessionStorage.setItem('runawaylog-v2-session-credentials', 'SYNTHETIC-OBSOLETE');
+    sessionStorage.setItem('runawaylog-v2-session-token', 'SYNTHETIC-OBSOLETE');
     writeIdentityCache('currentUser', '{"username":"demo"}');
-    writeIdentityCache('credentials', '{"demo":"hash"}');
-    expect(readIdentityCache('token')).toBe(bytes);
+    writeIdentityCache('username', 'demo');
+    clearObsoleteAuthCache();
     expect(readIdentityCache('currentUser')).toBe('{"username":"demo"}');
-    expect(readIdentityCache('credentials')).toBe('{"demo":"hash"}');
+    expect(readIdentityCache('username')).toBe('demo');
+    expect(sessionStorage.getItem('runawaylog-v2-session-credentials')).toBeNull();
+    expect(sessionStorage.getItem('runawaylog-v2-session-token')).toBeNull();
     expect(localStorage.getItem('runawaylog-token')).toBe('obsolete token');
     expect(localStorage.getItem('runawaylog-current-user')).toBe('obsolete identity');
     expect(localStorage.getItem('runawaylog-credentials')).toBe('obsolete credentials');
-    removeIdentityCache('token');
-    expect(readIdentityCache('token')).toBeNull();
-    expect(readIdentityCache('credentials')).toBe('{"demo":"hash"}');
+    removeIdentityCache('currentUser');
+    expect(readIdentityCache('currentUser')).toBeNull();
+    expect(readIdentityCache('username')).toBe('demo');
     sessionStorage.clear();
-    expect(readIdentityCache('credentials')).toBeNull();
+    expect(readIdentityCache('username')).toBeNull();
   });
   it('reads and writes the shipped dark-mode and timezone keys', async () => {
     localStorage.setItem('app-theme', 'obsolete');

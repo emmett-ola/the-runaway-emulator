@@ -69,6 +69,8 @@ it('Login renders recovery rather than allowing an empty account over damaged cu
   const onLogin = vi.fn();
   render(<Login onLogin={onLogin} />);
   expect(await screen.findByRole('heading', { name: i18n.t('recovery.title') })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: i18n.t('login.next') })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: i18n.t('login.setup_button') })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: i18n.t('login.button') })).not.toBeInTheDocument();
   expect(screen.queryByLabelText(i18n.t('login.username'))).not.toBeInTheDocument();
   expect(onLogin).not.toHaveBeenCalled();

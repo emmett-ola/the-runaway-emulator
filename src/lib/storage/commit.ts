@@ -1,8 +1,9 @@
 import type { BlobRecord, Current, Generation, Manifest, Pin } from './state-model';
 import { completed, ConflictError, openDatabase, request, transaction, readCurrent, getGeneration, readBlob, pinGeneration, releasePin, renewPin, StorageError } from './idb';
 import { descriptor, emptyManifest, makeBlob, verifyTree } from './files';
+import { commitCredential, type CredentialChange } from './credential-commit';
 
-export interface Candidate { generation: Generation; blobs: Map<string, BlobRecord>; deviceId: string; changed: Set<string>; fullValidation?: boolean }
+export interface Candidate { generation: Generation; blobs: Map<string, BlobRecord>; deviceId: string; changed: Set<string>; fullValidation?: boolean; credentialChange?: CredentialChange }
 const verified = new WeakSet<Candidate>();
 export const buildCandidate = async (base: Generation | null, changes: ReadonlyMap<string, BlobRecord | null>, deviceId: string): Promise<Candidate> => {
   const revision = String(BigInt(base?.revision ?? '0') + 1n);
@@ -108,6 +109,12 @@ export const commitPrepared = async (candidate: Candidate): Promise<void> => {
     if (!matchesBase(current, candidate.generation)) { conflict = true; tx.abort(); }
     else if (!staged || staged.state !== 'staged' || staged.manifestDigest !== candidate.generation.manifestDigest || JSON.stringify(staged.map) !== JSON.stringify(candidate.generation.map)) throw new StorageError('staging', 'Candidate is not verified staged data.');
     else {
+      if (candidate.credentialChange) await commitCredential(tx, candidate.credentialChange);
+      const parent = staged.parent ? await request<Generation>(tx.objectStore('generations').get(staged.parent)) : null;
+      for (const path of Object.keys(parent?.map ?? {})) {
+        const match = /^accounts\/([^/]+)\/account\.json$/.exec(path);
+        if (match && !staged.map[path]) tx.objectStore('credentials').delete(match[1]);
+      }
       tx.objectStore('generations').put({ ...staged, state: 'committed' }, staged.id);
       tx.objectStore('control').put({ generation: staged.id, revision: staged.revision, manifestDigest: staged.manifestDigest }, 'current');
       if (!current) tx.objectStore('control').add(candidate.deviceId, 'device-id');

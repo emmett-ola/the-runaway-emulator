@@ -13,3 +13,4 @@ export { decodeImportSources, sourceKey } from './source-codec';
 export { readRecoverySnapshot, readRecoveryRecord, garbageCollect } from './recovery';
 export { restoreRecoveryGeneration } from './restore';
 export { getCalendarTheme, setCalendarTheme, subscribePreferences, readIdentityCache } from './preferences';
+export { readCredential, createPasswordAccount, writeAccountCredential } from './credentials';

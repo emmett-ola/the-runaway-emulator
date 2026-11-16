@@ -1,123 +1,89 @@
 import type { AccountSnapshot } from './lib/storage';
-import { createAccount, ensureRunView, getAccountSnapshot, initializeStorage, readRecord } from './lib/storage';
+import { createPasswordAccount, ensureRunView, getAccountSnapshot, initializeStorage, readCredential, readStore, writeAccountCredential } from './lib/storage';
 import { getSavedTimezone } from './lib/time';
-import { readIdentityCache, writeIdentityCache, removeIdentityCache } from './lib/storage/preferences';
+import { readIdentityCache, writeIdentityCache, removeIdentityCache, clearObsoleteAuthCache } from './lib/storage/preferences';
+import { createCredential, LocalAuthError, PASSWORD_ITERATIONS, validatePassword, validVerificationInput, verifyPassword } from './lib/identity/password';
+export { LocalAuthError } from './lib/identity/password';
 
-export type AuthStatus = 'logged_out' | 'logging_in' | 'logged_in' | 'registering';
-export type TokenData = { accessToken: string; refreshToken: string; expiresAt: number };
-export type AuthContextType = {
-  authStatus: AuthStatus;
-  currentUser: AccountSnapshot | null;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, email?: string) => Promise<void>;
-  logout: () => void;
-  token: string | null;
+export type LocalIdentity = { username: string; accountId: string | null; step: 'password' | 'setup' };
+const attempts = new Map<string, { failures: number; until: number }>();
+const verifications = new Map<string, Promise<unknown>>();
+const serialVerification = <T>(id: string, operation: () => Promise<T>): Promise<T> => {
+  const result = (verifications.get(id) ?? Promise.resolve()).catch(() => undefined).then(operation);
+  verifications.set(id, result);
+  void result.finally(() => { if (verifications.get(id) === result) verifications.delete(id); }).catch(() => undefined);
+  return result;
 };
-
-// Local identity is demo-only and tab-scoped; legacy caches are never read.
-export const saveToken = (token: string, expiresAt: number): void => {
-  writeIdentityCache('token', JSON.stringify({ token, expiresAt }));
+export const lookupLocalIdentity = async (username: string): Promise<LocalIdentity> => {
+  if (!username.trim()) throw new LocalAuthError('username_required');
+  await initializeStorage();
+  clearObsoleteAuthCache();
+  const users = (await readStore()).users;
+  const account = Object.hasOwn(users, username) ? users[username] : null;
+  const credential = account ? await readCredential(account.accountId) : null;
+  return { username, accountId: account?.accountId ?? null, step: credential ? 'password' : 'setup' };
 };
-
-export const loadToken = (): string | null => {
-  const raw = readIdentityCache('token');
-  if (!raw) return null;
-  let value: unknown;
-  try { value = JSON.parse(raw); } catch { return null; }
-  if (!value || typeof value !== 'object' || !('token' in value) || typeof value.token !== 'string'
-    || !('expiresAt' in value) || typeof value.expiresAt !== 'number' || value.expiresAt <= Date.now()) return null;
-  return value.token;
+const enterSession = async (username: string, accountId: string): Promise<AccountSnapshot> => {
+  const account = Object.values((await readStore()).users).find(value => value.accountId === accountId);
+  if (!account || account.username !== username) throw new LocalAuthError('identity_changed');
+  await ensureRunView(account.accountId, getSavedTimezone(), new Date());
+  clearObsoleteAuthCache();
+  writeIdentityCache('currentUser', JSON.stringify({ username: account.username }));
+  writeIdentityCache('username', account.username);
+  return account;
 };
-
-export const removeToken = (): void => {
-  removeIdentityCache('token');
-  removeIdentityCache('currentUser');
-};
-
-export const saveCurrentUser = (userData: { username: string }): void => {
-  writeIdentityCache('currentUser', JSON.stringify({ username: userData.username }));
-};
-
 export const loadCurrentUser = (): AccountSnapshot | null => {
   const raw = readIdentityCache('currentUser');
   if (!raw) return null;
-  let identity: unknown;
-  try { identity = JSON.parse(raw); } catch { return null; }
-  return identity && typeof identity === 'object' && 'username' in identity && typeof identity.username === 'string'
-    ? getAccountSnapshot(identity.username) : null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    return value && typeof value === 'object' && 'username' in value && typeof value.username === 'string' ? getAccountSnapshot(value.username) : null;
+  } catch { return null; }
 };
-
-export const isAuthenticated = (): boolean => !!loadToken();
-
-async function hydrateAccount(username: string): Promise<AccountSnapshot> {
-  const account = await readRecord(username);
-  if (!account) throw new Error('Account not found');
-  await ensureRunView(account.accountId, getSavedTimezone(), new Date());
-  return account;
-}
-
-/** Preserve the existing insecure demo check; this is not real authentication. */
-const hashPassword = (password: string): string => {
-  let hash = 0;
-  for (const byte of new TextEncoder().encode(password)) {
-    hash = ((hash << 5) - hash) + byte;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0');
+export const isAuthenticated = (): boolean => loadCurrentUser() !== null;
+export const login = async (username: string, password: string, expected?: LocalIdentity): Promise<AccountSnapshot> => {
+  const identity = await lookupLocalIdentity(username);
+  if (expected && (expected.accountId !== identity.accountId || expected.username !== identity.username || expected.step !== identity.step)) throw new LocalAuthError('identity_changed');
+  if (!identity.accountId || identity.step !== 'password') throw new LocalAuthError('setup_required');
+  const accountId = identity.accountId;
+  return serialVerification(accountId, async () => {
+    const state = attempts.get(accountId);
+    if (state?.until && Date.now() < state.until) throw new LocalAuthError('cooldown');
+    if (state?.until && Date.now() >= state.until) attempts.delete(accountId);
+    const credential = await readCredential(accountId);
+    if (!credential) throw new LocalAuthError('identity_changed');
+    if (!validVerificationInput(password)) throw new LocalAuthError('invalid_credentials');
+    if (!await verifyPassword(password, credential)) {
+      const failures = (attempts.get(accountId)?.failures ?? 0) + 1;
+      attempts.set(accountId, { failures, until: failures >= 5 ? Date.now() + 30_000 : 0 });
+      throw new LocalAuthError(failures >= 5 ? 'cooldown' : 'invalid_credentials');
+    }
+    const next = credential.iterations < PASSWORD_ITERATIONS ? await createCredential(password, credential) : credential;
+    // Guard even a non-upgrade against a credential/account changed while deriving.
+    await writeAccountCredential(accountId, username, credential, next);
+    const account = await enterSession(username, accountId);
+    attempts.delete(accountId);
+    return account;
+  });
 };
-
-const readCredentials = (): Record<string, string> => {
-  const raw = readIdentityCache('credentials');
-  if (!raw) return {};
-  const value: unknown = JSON.parse(raw);
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid demo credentials');
-  const credentials: Record<string, string> = {};
-  for (const [username, hash] of Object.entries(value)) {
-    if (typeof hash !== 'string') throw new Error('Invalid demo credentials');
-    Object.defineProperty(credentials, username, { value: hash, enumerable: true, writable: true, configurable: true });
-  }
-  return credentials;
+export const setupLocalPassword = async (identity: LocalIdentity, password: string, confirmation: string): Promise<AccountSnapshot> => {
+  validatePassword(password, confirmation);
+  const current = await lookupLocalIdentity(identity.username);
+  if (current.accountId !== identity.accountId || current.step !== 'setup' || identity.step !== 'setup') throw new LocalAuthError('identity_changed');
+  const credential = await createCredential(password);
+  const receipt = identity.accountId
+    ? await writeAccountCredential(identity.accountId, identity.username, null, credential)
+    : await createPasswordAccount(identity.username, credential);
+  return enterSession(identity.username, receipt.accountId!);
 };
-
-const saveCredentials = (username: string, password: string): void => {
-  writeIdentityCache('credentials', JSON.stringify({ ...readCredentials(), [username]: hashPassword(password) }));
-};
-
-const enterDemoSession = (account: AccountSnapshot): void => {
-  saveToken(`mock-jwt-token-${account.username}-${Date.now()}`, Date.now() + 24 * 60 * 60 * 1000);
-  saveCurrentUser(account);
-};
-
-/** Empty-password entry retains the shipped local-demo bypass. */
-export const login = async (username: string, password: string): Promise<AccountSnapshot> => {
-  await initializeStorage();
-  const existing = await readRecord(username);
-  if (!existing) {
-    await createAccount(username);
-    if (password.trim()) saveCredentials(username, password);
-  } else if (password.trim()) {
-    const credentials = readCredentials();
-    const storedHash = Object.prototype.hasOwnProperty.call(credentials, username) ? credentials[username] : undefined;
-    if (!storedHash || storedHash !== hashPassword(password)) throw new Error('Invalid username or password');
-  }
-  const account = await hydrateAccount(username);
-  enterDemoSession(account);
-  return account;
-};
-
+/** Registration is explicit password setup, never passwordless account entry. */
 export const register = async (username: string, password: string, email?: string): Promise<AccountSnapshot> => {
-  if (password.length < 6) throw new Error('Password must be at least 6 characters long');
-  await initializeStorage();
-  const credentials = readCredentials();
-  if (Object.prototype.hasOwnProperty.call(credentials, username) || await readRecord(username)) throw new Error('Username already exists');
-  await createAccount(username, email ? { email } : undefined);
-  saveCredentials(username, password);
-  const account = await hydrateAccount(username);
-  enterDemoSession(account);
-  return account;
+  validatePassword(password);
+  const identity = await lookupLocalIdentity(username);
+  if (identity.accountId) throw new LocalAuthError('identity_changed');
+  const receipt = await createPasswordAccount(username, await createCredential(password), email ? { email } : {});
+  return enterSession(username, receipt.accountId!);
 };
-
 export const logout = (): void => {
-  removeToken();
-  removeIdentityCache('username');
+  removeIdentityCache('username'); removeIdentityCache('currentUser'); clearObsoleteAuthCache();
 };

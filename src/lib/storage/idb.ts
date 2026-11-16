@@ -1,8 +1,10 @@
 import type { BlobRecord, Current, Generation, Pin } from './state-model';
 
 export const DATABASE_NAME = 'runawaylog-vfiles';
-const stores = ['control', 'generations', 'blobs', 'pins'];
+export const DATABASE_VERSION = 2;
+const stores = ['control', 'generations', 'blobs', 'pins', 'credentials'];
 let opening: Promise<IDBDatabase> | undefined;
+let versionChanged = false;
 export class StorageError extends Error {
   code: string;
   constructor(code: string, message: string) { super(message); this.code = code; this.name = 'StorageError'; }
@@ -20,15 +22,20 @@ export const completed = (tx: IDBTransaction): Promise<void> => new Promise((res
   tx.onerror = () => { /* Abort, not individual request success, settles the transaction. */ };
 });
 export const openDatabase = (): Promise<IDBDatabase> => {
+  if (versionChanged) return Promise.reject(new StorageError('version-changed', 'Local storage changed in another tab; reload this page.'));
   opening ??= new Promise((resolve, reject) => {
     if (!globalThis.indexedDB) { reject(new StorageError('unavailable', 'IndexedDB is unavailable.')); return; }
-    const operation = indexedDB.open(DATABASE_NAME, 1);
-    operation.onupgradeneeded = () => stores.forEach(name => operation.result.createObjectStore(name));
-    operation.onerror = () => reject(operation.error ?? new StorageError('open', 'Cannot open local storage.'));
-    operation.onblocked = () => reject(new StorageError('upgrade-blocked', 'Close obsolete tabs before opening storage.'));
+    let rejected = false;
+    const operation = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+    operation.onupgradeneeded = () => stores.forEach(name => {
+      if (!operation.result.objectStoreNames.contains(name)) operation.result.createObjectStore(name);
+    });
+    operation.onerror = () => { opening = undefined; reject(operation.error ?? new StorageError('open', 'Cannot open local storage.')); };
+    operation.onblocked = () => { rejected = true; opening = undefined; reject(new StorageError('upgrade-blocked', 'Close obsolete tabs before opening storage.')); };
     operation.onsuccess = () => {
       const db = operation.result;
-      db.onversionchange = () => { db.close(); opening = undefined; };
+      if (rejected) { db.close(); return; }
+      db.onversionchange = () => { db.close(); opening = undefined; versionChanged = true; };
       resolve(db);
     };
   });
@@ -104,4 +111,5 @@ export const renewPin = async (pin: Pin): Promise<void> => {
 export const closeDatabase = async (): Promise<void> => {
   if (opening) { try { (await opening).close(); } catch { /* Failed opens have no handle. */ } }
   opening = undefined;
+  versionChanged = false;
 };
