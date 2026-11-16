@@ -1,12 +1,19 @@
-import { canonicalStringify } from '../../../shared/codec';
-import { addRecent, addTimestamp, utcPartition, validateHit } from '../../../shared/run';
-export { utcPartition, validateHit } from '../../../shared/run';
+import { canonicalStringify, validateInstant } from '../../../shared/codec';
+import { addRecent, addTimestamp, utcPartition, validateHit as validateRunHit } from '../../../shared/run';
+export { utcPartition } from '../../../shared/run';
 import type { Hit } from './model';
 import type { Chunk, ChunkDescriptor, Generation, RunIndex } from './state-model';
 import { accountPath, descriptor, makeBlob, readFile } from './files';
+import { isObject, isVersion, validateEnvelope } from './envelope-validation';
 import { StorageError } from './idb';
 import type { BlobRecord } from './state-model';
 
+/** Storage boundaries accept canonical hits only; never repair incoming metadata. */
+export const validateHit = (hit: Hit): void => {
+  canonicalStringify(hit);
+  if (!isObject(hit) || hit.schemaVersion !== 1 || !isVersion(hit.recordVersion)) throw new StorageError('hit-metadata', 'Hit requires schemaVersion 1 and a positive decimal-string recordVersion.');
+  validateRunHit(hit);
+};
 export const emptyIndex = (accountId: string, revision: string): RunIndex => ({
   accountId, schemaVersion: 1, projectionVersion: 1, sourceRevision: revision, nextOrdinal: 0,
   total: 0, firstAt: null, minAt: null, maxAt: null, chunks: [], hitIds: [], timestamps: [], recent: [],
@@ -14,10 +21,17 @@ export const emptyIndex = (accountId: string, revision: string): RunIndex => ({
 export const chunkPath = (id: string, partition: string, sequence: number): string => `${accountPath(id)}/run/${partition}-${String(sequence).padStart(6, '0')}.json`;
 export const appendChunk = async (accountId: string, index: RunIndex, hit: Hit, tail: Chunk | null, revision: string): Promise<{ path: string; blob: BlobRecord; index: RunIndex }> => {
   validateHit(hit);
+  accountPath(accountId);
+  if (!isVersion(revision)) throw new StorageError('version', 'Chunk publication requires a positive decimal-string revision.');
   const partition = utcPartition(hit.at);
   const previous = index.chunks.filter(chunk => chunk.partition === partition).at(-1);
   const now = Date.now();
   let sequence = previous?.sequence ?? 1;
+  if (tail) {
+    validateEnvelope(tail, accountId);
+    if (tail.partition !== partition || tail.sequence !== sequence || !Array.isArray(tail.entries)) throw new StorageError('chunk', 'Append tail does not belong to the indexed partition.');
+    for (const entry of tail.entries) validateHit(entry.hit);
+  }
   const create = (): Chunk => ({ accountId, schemaVersion: 1, recordVersion: revision, createdAt: now, updatedAt: now, partition, sequence, entries: [] });
   let chunk: Chunk = tail ? { ...tail, recordVersion: revision, updatedAt: now, entries: [...tail.entries] } : create();
   const entry = { ordinal: index.nextOrdinal, hit };
@@ -43,9 +57,11 @@ export const appendChunk = async (accountId: string, index: RunIndex, hit: Hit, 
     recent: addRecent(index.recent, { path, ordinal: entry.ordinal, at: hit.at }) } };
 };
 export const validateChunk = (chunk: Chunk, expected: ChunkDescriptor, accountId: string): void => {
-  if (chunk.accountId !== accountId || chunk.partition !== expected.partition || chunk.sequence !== expected.sequence || chunk.entries.length !== expected.count || !chunk.entries.length || chunk.entries.length > 5000 || expected.bytes > 1_000_000) throw new StorageError('chunk', 'Chunk envelope and index disagree.');
+  validateEnvelope(chunk, accountId);
+  if (!isObject(expected) || !Array.isArray(chunk.entries) || chunk.partition !== expected.partition || chunk.sequence !== expected.sequence || !Number.isSafeInteger(chunk.sequence) || chunk.sequence < 1 || expected.path !== chunkPath(accountId, chunk.partition, chunk.sequence) || chunk.entries.length !== expected.count || !chunk.entries.length || chunk.entries.length > 5000 || !Number.isSafeInteger(expected.bytes) || expected.bytes < 0 || expected.bytes > 1_000_000) throw new StorageError('chunk', 'Chunk envelope and index disagree.');
   let prior = -1;
   for (const entry of chunk.entries) {
+    if (!isObject(entry)) throw new StorageError('ordinal', 'Invalid chunk entry.');
     validateHit(entry.hit);
     if (!Number.isSafeInteger(entry.ordinal) || entry.ordinal <= prior || utcPartition(entry.hit.at) !== chunk.partition) throw new StorageError('ordinal', 'Invalid ordinal or UTC partition.');
     prior = entry.ordinal;
@@ -53,16 +69,30 @@ export const validateChunk = (chunk: Chunk, expected: ChunkDescriptor, accountId
   const ats = chunk.entries.map(entry => entry.hit.at);
   if (Math.min(...ats) !== expected.minAt || Math.max(...ats) !== expected.maxAt || chunk.entries[0].ordinal !== expected.firstOrdinal || prior !== expected.lastOrdinal) throw new StorageError('chunk-bounds', 'Chunk bounds disagree with the index.');
 };
-export const validateIndex = (index: RunIndex, accountId: string): void => {
-  if (!Array.isArray(index.hitIds) || index.hitIds.length !== index.total || index.hitIds.some(id => typeof id !== 'string' || !id) || new Set(index.hitIds).size !== index.total) throw new StorageError('index-hit-ids', 'Duplicate hit identity or invalid run index hit ids in ordinal order.');
+export const validateIndex = (index: RunIndex, accountId: string, options: { allowDuplicateIds?: boolean } = {}): void => {
+  accountPath(accountId);
+  if (!isObject(index) || !Array.isArray(index.chunks) || !Array.isArray(index.timestamps) || !Array.isArray(index.recent) || !isVersion(index.sourceRevision) || !Number.isSafeInteger(index.total) || index.total < 0 || !Number.isSafeInteger(index.nextOrdinal)) throw new StorageError('index', 'Malformed run index.');
+  if (!Array.isArray(index.hitIds) || index.hitIds.length !== index.total || index.hitIds.some(id => typeof id !== 'string' || !id || id.includes('\0')) || (!options.allowDuplicateIds && new Set(index.hitIds).size !== index.total)) throw new StorageError('index-hit-ids', 'Duplicate hit identity or invalid run index hit ids in ordinal order.');
   if (index.accountId !== accountId || index.schemaVersion !== 1 || index.projectionVersion !== 1 || index.total !== index.chunks.reduce((sum, chunk) => sum + chunk.count, 0) || index.total !== index.timestamps.reduce((sum, value) => sum + value.count, 0) || index.nextOrdinal !== index.total || index.recent.length !== Math.min(50, index.total)) throw new StorageError('index', 'Invalid run index totals or ownership.');
+  if ([index.firstAt, index.minAt, index.maxAt].some(at => index.total ? !validateInstant(at) : at !== null)) throw new StorageError('index-bounds', 'Invalid run index timestamp bounds.');
   let prior = -Infinity;
+  const paths = new Set<string>();
+  for (const chunk of index.chunks) {
+    if (!isObject(chunk) || typeof chunk.partition !== 'string' || !Number.isSafeInteger(chunk.sequence) || chunk.sequence < 1 || chunk.path !== chunkPath(accountId, chunk.partition, chunk.sequence) || paths.has(chunk.path) || !Number.isSafeInteger(chunk.count) || chunk.count < 1 || chunk.count > 5000 || !Number.isSafeInteger(chunk.bytes) || chunk.bytes < 0 || chunk.bytes > 1_000_000 || !validateInstant(chunk.minAt) || !validateInstant(chunk.maxAt) || chunk.minAt > chunk.maxAt || utcPartition(chunk.minAt) !== chunk.partition || utcPartition(chunk.maxAt) !== chunk.partition || !Number.isSafeInteger(chunk.firstOrdinal) || !Number.isSafeInteger(chunk.lastOrdinal) || chunk.firstOrdinal < 0 || chunk.lastOrdinal < chunk.firstOrdinal || chunk.lastOrdinal >= index.total || chunk.module !== 'run' || chunk.schemaVersion !== 1 || !isVersion(chunk.fileVersion) || typeof chunk.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(chunk.sha256)) throw new StorageError('index-descriptor', 'Invalid run chunk descriptor.');
+    paths.add(chunk.path);
+  }
   for (const frequency of index.timestamps) {
+    if (!isObject(frequency)) throw new StorageError('timestamps', 'Invalid exact timestamp projection.');
     utcPartition(frequency.at);
     if (frequency.at <= prior || !Number.isSafeInteger(frequency.count) || frequency.count < 1 || !Number.isSafeInteger(frequency.firstOrdinal) || frequency.firstOrdinal < 0 || frequency.firstOrdinal >= index.total) throw new StorageError('timestamps', 'Invalid exact timestamp projection.');
     prior = frequency.at;
   }
-  for (const ref of index.recent) if (!index.chunks.some(chunk => chunk.path === ref.path && ref.ordinal >= chunk.firstOrdinal && ref.ordinal <= chunk.lastOrdinal)) throw new StorageError('recent', 'Recent hit reference is outside its chunk.');
+  const ordinals = new Set<number>();
+  let previous: RunIndex['recent'][number] | undefined;
+  for (const ref of index.recent) {
+    if (!isObject(ref) || !validateInstant(ref.at) || !Number.isSafeInteger(ref.ordinal) || ordinals.has(ref.ordinal) || (previous && (ref.at > previous.at || (ref.at === previous.at && ref.ordinal <= previous.ordinal))) || !index.chunks.some(chunk => chunk.path === ref.path && ref.ordinal >= chunk.firstOrdinal && ref.ordinal <= chunk.lastOrdinal)) throw new StorageError('recent', 'Recent hit reference is outside its chunk or stable order.');
+    ordinals.add(ref.ordinal); previous = ref;
+  }
 };
 
 /** Verify append-only publication from the verified base, reading changed chunks only. */

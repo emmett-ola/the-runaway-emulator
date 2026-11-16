@@ -158,8 +158,12 @@ export const en_us = {
     "from": "From:",
     "escape_dreams": "Runaway Count:",
     "warning": "⚠️ This data is from a different user ({username}).<br/>The data will be imported to your current account ({currentUsername}).<br/>If you want to import to \"{username}\", please logout and login as that user first.",
+    "source_warning": "Source: {username}. Records will be imported into the selected local account {currentUsername}; source identity is not adopted.",
     "merge": "Add new runaway records to your current data",
     "replace": "Replace all your data with imported runaway records",
+    "replace_records": "Replace only runaway records; retain identity, profile, settings and games",
+    "zip_only": "Format-1 ZIP archives only. JSON and older exports cannot be imported.",
+    "target": "Target account: {handle} ({accountId})",
     "merge_button": "Merge",
     "replace_button": "Replace",
     "cancel_button": "Cancel"
@@ -194,10 +198,34 @@ export const en_us = {
     "showing_last": "Showing last",
     "of": "of"
   },
+  "recovery": {
+    "title": "Local data recovery",
+    "blocked": "The current data cannot be read. Saving and login are blocked; nothing has been replaced.",
+    "loading": "Checking retained generations…",
+    "previous": "Read-only older data — generation {generation}, revision {revision}",
+    "current": "The current generation verified. Reload to retry; no older data has been promoted.",
+    "account": "{handle}: {count} records",
+    "view": "View read-only account data",
+    "details": "Verified older account data (read-only)",
+    "none": "No healthy retained generation was found. Saving remains blocked.",
+    "inaccessible": "IndexedDB cannot be opened. Original bytes are inaccessible, so rescue cannot be downloaded.",
+    "rescue": "Download original-byte rescue ZIP",
+    "rescue_warning": "Rescue can contain damaged bytes and multiple accounts. It is not a normal import archive or a verified backup.",
+    "confirm": "I understand that newer records may be absent. Restore this older tree as a new generation and retain the damaged evidence.",
+    "restore": "Restore confirmed older data",
+    "restoring": "Verifying and saving recovery…",
+    "failed": "Recovery could not be completed. The original evidence has not been deleted.",
+    "rescue_failed": "The rescue ZIP could not be created or exceeds the supported archive limits. No download was completed.",
+    "retry": "Reload and retry"
+  },
   "errors": {
     "import_failed": "❌ Import failed: {error}",
     "import_merged": "✅ Merged {count} new runaway records!",
-    "import_replaced": "✅ Replaced with {count} runaway records!"
+    "import_replaced": "✅ Replaced with {count} runaway records!",
+    "archive_invalid": "Choose a supported, intact format-1 ZIP archive. JSON and older exports are not supported.",
+    "export_failed": "The ZIP export could not be completed or exceeds the supported archive limits. No download was completed.",
+    "storage_failed": "The local data operation could not be completed. Please retry.",
+    "unknown": "Unknown error"
   },
   "easter_eggs": {
     "boom_quote": "BOOM! 💥 Just kidding... or am I?"

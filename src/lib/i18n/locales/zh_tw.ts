@@ -159,8 +159,12 @@ export const zh_tw = {
     "from": "來源：",
     "escape_dreams": "跑路次數：",
     "warning": "⚠️ 此資料來自不同使用者 ({username})。<br/>資料將匯入到您當前的帳戶 ({currentUsername})。<br/>如果您想匯入到 \"{username}\"，請先退出當前帳戶並以該使用者身份登入。",
+    "source_warning": "來源：{username}。記錄將匯入所選本機帳戶 {currentUsername}；不會採用來源帳戶的身分。",
     "merge": "將新跑路記錄新增到當前資料中",
     "replace": "用匯入的資料替換所有當前跑路記錄",
+    "replace_records": "僅取代跑路記錄；保留身分、個人資料、設定和遊戲",
+    "zip_only": "僅支援 format-1 ZIP 封存。無法匯入 JSON 或舊版匯出檔案。",
+    "target": "目標帳戶：{handle}（{accountId}）",
     "merge_button": "合併",
     "replace_button": "替換",
     "cancel_button": "取消"
@@ -195,10 +199,34 @@ export const zh_tw = {
     "showing_last": "顯示最近",
     "of": "條，共"
   },
+  "recovery": {
+    "title": "本機資料復原",
+    "blocked": "目前資料無法讀取。儲存和登入已封鎖；未取代任何資料。",
+    "loading": "正在檢查保留的資料世代…",
+    "previous": "唯讀舊資料 — 世代 {generation}，修訂 {revision}",
+    "current": "目前世代已通過驗證。請重新載入後重試；未自動提升舊資料。",
+    "account": "{handle}：{count} 筆記錄",
+    "view": "檢視唯讀帳戶資料",
+    "details": "已驗證的舊帳戶資料（唯讀）",
+    "none": "找不到完整可讀的保留世代。仍然禁止儲存。",
+    "inaccessible": "無法開啟 IndexedDB。原始位元組無法存取，因此無法下載救援檔。",
+    "rescue": "下載原始位元組救援 ZIP",
+    "rescue_warning": "救援檔可能包含損壞的位元組和多個帳戶，不能當作一般匯入檔，也不代表已驗證的備份。",
+    "confirm": "我了解較新的記錄可能缺失。將此舊資料樹復原為新世代，並保留損壞的證據。",
+    "restore": "復原已確認的舊資料",
+    "restoring": "正在驗證並儲存復原資料…",
+    "failed": "無法完成復原。原始證據未被刪除。",
+    "rescue_failed": "無法建立救援 ZIP，或資料超出支援的封存限制。未完成下載。",
+    "retry": "重新載入並重試"
+  },
   "errors": {
     "import_failed": "❌ 匯入失敗：{error}",
     "import_merged": "✅ 已合併 {count} 條新的跑路記錄！",
-    "import_replaced": "✅ 已替換為 {count} 條跑路記錄！"
+    "import_replaced": "✅ 已替換為 {count} 條跑路記錄！",
+    "archive_invalid": "請選擇支援且完整的 format-1 ZIP 封存。不支援 JSON 或舊版匯出檔案。",
+    "export_failed": "無法完成 ZIP 匯出，或資料超出支援的封存限制。未完成下載。",
+    "storage_failed": "無法完成本機資料操作。請重試。",
+    "unknown": "未知錯誤"
   },
   "easter_eggs": {
     "boom_quote": "BOOM! 💥 開玩笑的...或者我是認真的？"

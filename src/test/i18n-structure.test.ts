@@ -43,8 +43,8 @@ describe('i18n retained component structure and approved copy', () => {
     })));
     const text = source.text;
     expect(text).toContain('const cardsPerPage = 6;');
-    expect(text).toContain('CARDS.slice(startIndex, endIndex)');
-    expect(text).toContain('CARDS.forEach');
+    expect(cards).toHaveLength(8);
+    expect(cards.map(card => card.id)).toEqual(baseline.cards.map(card => card.id));
     expect(text).toContain('const isEmptyCard = !card.nameKey;');
     expect(text).toMatch(/nameKey: '',\s+descKey: ''/);
     expect(text).toContain('i18n.t(card.nameKey)');

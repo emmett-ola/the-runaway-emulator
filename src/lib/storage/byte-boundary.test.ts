@@ -8,7 +8,7 @@ it('allows exactly one million UTF-8 envelope bytes and rolls the next byte with
   try {
     const accountId = crypto.randomUUID();
     const initial = emptyIndex(accountId, '1');
-    const hit = { id: 'first', at: 0, multibyte: 'é🙂', padding: '' };
+    const hit = { id: 'first', at: 0, schemaVersion: 1, recordVersion: '1', multibyte: 'é🙂', padding: '' };
     const measured = await appendChunk(accountId, initial, hit, null, '1');
     const exactHit = { ...hit, padding: 'x'.repeat(1_000_000 - measured.blob.length) };
     const equal = await appendChunk(accountId, initial, exactHit, null, '1');
@@ -16,7 +16,7 @@ it('allows exactly one million UTF-8 envelope bytes and rolls the next byte with
     const tail: Chunk = { accountId, schemaVersion: 1, recordVersion: '1', createdAt: 0, updatedAt: 0,
       partition: 'y1970-m01', sequence: 1, entries: [{ ordinal: 0, hit: exactHit }] };
     const original = Array.from(equal.blob.bytes);
-    const next = await appendChunk(accountId, equal.index, { id: 'second', at: 0 }, tail, '2');
+    const next = await appendChunk(accountId, equal.index, { id: 'second', at: 0, schemaVersion: 1, recordVersion: '1' }, tail, '2');
     expect(next.path).toContain('-000002.json');
     expect(next.index.chunks[0]).toEqual(equal.index.chunks[0]);
     expect(Array.from(equal.blob.bytes)).toEqual(original);

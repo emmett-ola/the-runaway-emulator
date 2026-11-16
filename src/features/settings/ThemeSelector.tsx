@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { colorThemes, getThemeById, applyTheme, type ColorTheme } from '../../themes';
-import { getCalendarTheme, setCalendarTheme, subscribePreferences } from '../../lib/storage/preferences';
+import { getCalendarTheme, setCalendarTheme, subscribePreferences } from '../../lib/storage';
 import { useT } from '../../lib/i18n';
 import './ThemeSelector.css';
 

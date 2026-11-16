@@ -1,8 +1,8 @@
 import type { BlobRecord, Current, Generation, Manifest, Pin } from './state-model';
-import { completed, ConflictError, openDatabase, request, transaction, readCurrent, getGeneration, pinGeneration, releasePin, renewPin, StorageError } from './idb';
+import { completed, ConflictError, openDatabase, request, transaction, readCurrent, getGeneration, readBlob, pinGeneration, releasePin, renewPin, StorageError } from './idb';
 import { descriptor, emptyManifest, makeBlob, verifyTree } from './files';
 
-export interface Candidate { generation: Generation; blobs: Map<string, BlobRecord>; deviceId: string; changed: Set<string> }
+export interface Candidate { generation: Generation; blobs: Map<string, BlobRecord>; deviceId: string; changed: Set<string>; fullValidation?: boolean }
 const verified = new WeakSet<Candidate>();
 export const buildCandidate = async (base: Generation | null, changes: ReadonlyMap<string, BlobRecord | null>, deviceId: string): Promise<Candidate> => {
   const revision = String(BigInt(base?.revision ?? '0') + 1n);
@@ -74,7 +74,15 @@ export const verifyPrepared = async (candidate: Candidate): Promise<void> => {
   try {
     const readback = await getGeneration(candidate.generation.id);
     if (readback.state !== 'staged' || JSON.stringify(readback.map) !== JSON.stringify(candidate.generation.map)) throw new StorageError('staging', 'Staged generation readback differs.');
-    await verifyTree(readback, candidate.generation.parent ? candidate.changed : undefined);
+    const manifest = await verifyTree(readback, candidate.generation.parent ? candidate.changed : undefined);
+    if (candidate.fullValidation) {
+      const { validateCanonicalTree } = await import('./tree-validation');
+      const files = new Map<string, Uint8Array>();
+      for (const [path, id] of Object.entries(readback.map)) files.set(path, (await readBlob(id)).bytes);
+      await validateCanonicalTree(manifest, files);
+      verified.add(candidate);
+      return;
+    }
     const { hydrateAccount } = await import('./snapshot');
     const { readFile } = await import('./files');
     const { verifyRunTransition } = await import('./chunks');

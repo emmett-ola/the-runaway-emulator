@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
 import { i18n, useT } from '../../lib/i18n';
-import { readIdentityCache } from '../../lib/storage/preferences';
+import { readIdentityCache } from '../../lib/storage';
 import { logout } from '../../auth';
 
 export const CardGame = () => {

@@ -1,8 +1,10 @@
 import { timestampToDateString } from '../time';
 import { accountPath, readFile, verifyTree } from './files';
 import { validateChunk, validateIndex } from './chunks';
+import { validateDirectory, validateEnvelope, validateGames, validateIdentity, validateProfile, validateSettings } from './envelope-validation';
 import { StorageError } from './idb';
 import { publishPreferences, validatePreferences } from './preferences';
+import { decodeImportSources } from './source-codec';
 import type { UserRecord, UserSettings, GameSettings, Hit } from './model';
 import type { AccountSnapshot, Chunk, DevicePreferences, Envelope, Generation, Manifest, ProfilePayload, RunIndex, RunView, StorageState, StoreSnapshot } from './state-model';
 
@@ -39,29 +41,37 @@ export const publishEmpty = (): void => {
 };
 export const hydrateAccount = async (generation: Generation, id: string): Promise<AccountSnapshot> => {
   const root = accountPath(id);
-  const [account, profile, settings, games, index] = await Promise.all([
+  const [account, profile, settings, games, index, extensions, imports] = await Promise.all([
     readFile<Envelope<Identity>>(generation, `${root}/account.json`), readFile<Envelope<ProfilePayload>>(generation, `${root}/profile.json`),
-    readFile<Envelope<UserSettings>>(generation, `${root}/settings.json`), readFile<Envelope<GamesPayload>>(generation, `${root}/plugins/games.json`), readFile<RunIndex>(generation, `${root}/run/index.json`),
+    readFile<Envelope<UserSettings>>(generation, `${root}/settings.json`), readFile<Envelope<GamesPayload> & { pluginId: string }>(generation, `${root}/plugins/games.json`), readFile<RunIndex>(generation, `${root}/run/index.json`),
+    readFile<Envelope>(generation, `${root}/extensions.json`), readFile<Envelope>(generation, `${root}/imports/index.json`),
   ]);
-  for (const envelope of [account, profile, settings, games]) {
-    if (envelope.accountId !== id || envelope.schemaVersion !== 1 || !/^[1-9][0-9]*$/.test(envelope.recordVersion)) throw new StorageError('ownership', 'Account path and envelope identity disagree.');
+  for (const envelope of [account, profile, settings, games, extensions, imports]) {
+    validateEnvelope(envelope, id, generation.revision);
+    if (!Object.hasOwn(envelope, 'payload')) throw new StorageError('canonical', 'Canonical entity payload is missing.');
   }
-  if (typeof account.payload.handle !== 'string' || !Number.isInteger(account.payload.registeredAt)) throw new StorageError('identity', 'Invalid account identity.');
+  if (!Array.isArray(imports.payload)) throw new StorageError('canonical', 'Invalid canonical import source index.');
+  validateIdentity(account.payload);
+  validateProfile(profile.payload);
+  validateSettings(settings.payload);
+  validateGames(games.payload);
+  if (games.pluginId !== 'games') throw new StorageError('plugin', 'Unregistered games plugin envelope.');
   validateIndex(index, id);
+  if (BigInt(index.sourceRevision) > BigInt(generation.revision)) throw new StorageError('canonical', 'Run index source revision exceeds its generation.');
   const manifest = await readFile<Manifest>(generation, 'manifest.json');
   for (const chunk of index.chunks) {
     const file = manifest.files.find(value => value.path === chunk.path);
-    if (!file || chunk.path !== `${root}/run/${chunk.partition}-${String(chunk.sequence).padStart(6, '0')}.json` || file.sha256 !== chunk.sha256 || file.bytes !== chunk.bytes || file.fileVersion !== chunk.fileVersion) throw new StorageError('index-descriptor', 'Index and manifest chunk descriptors disagree.');
+    if (!file || chunk.path !== `${root}/run/${chunk.partition}-${String(chunk.sequence).padStart(6, '0')}.json` || file.sha256 !== chunk.sha256 || file.bytes !== chunk.bytes || file.fileVersion !== chunk.fileVersion || file.module !== chunk.module || file.schemaVersion !== chunk.schemaVersion) throw new StorageError('index-descriptor', 'Index and manifest chunk descriptors disagree.');
   }
   if (manifest.files.filter(file => file.path.startsWith(`${root}/run/`) && !file.path.endsWith('/index.json')).length !== index.chunks.length) throw new StorageError('index-membership', 'Run index omits a chunk.');
-  if (!profile.payload || profile.payload.emailVerification !== 'unverified' || !profile.payload.fields || typeof profile.payload.fields !== 'object' || Array.isArray(profile.payload.fields)) throw new StorageError('profile', 'Invalid canonical profile envelope.');
   return freeze({ accountId: id, username: account.payload.handle, registeredAt: account.payload.registeredAt,
     profile: { ...profile.payload.fields, ...(profile.payload.email === undefined ? {} : { email: profile.payload.email }) }, settings: { ...settings.payload, games: games.payload.settings }, cardCollections: games.payload.cardCollections, total: index.total, index });
 };
 export const publishGeneration = async (generation: Generation): Promise<void> => {
-  const changed = new Set(Object.keys(generation.map).filter(path => !/\/run\/y/.test(path)));
+  const changed = new Set(Object.keys(generation.map).filter(path => !/\/(?:run\/y|imports\/i-)/.test(path)));
   await verifyTree(generation, changed);
   const [directory, preferences] = await Promise.all([readFile<Directory>(generation, 'shared/accounts.json'), readFile<DevicePreferences>(generation, 'device/preferences.json')]);
+  validateDirectory(directory, generation.revision);
   validatePreferences(preferences);
   const users: Record<string, AccountSnapshot> = Object.create(null);
   const ids = new Set<string>();
@@ -124,8 +134,18 @@ export const readFullFrom = async (generation: Generation, id: string): Promise<
     entries.push(...chunk.entries);
   }
   const extensions = await readFile<Envelope<Record<string, unknown>>>(generation, `${accountPath(id)}/extensions.json`);
+  const imports = await readFile<Envelope<{ importId: string; path: string; sourceDigest: string }[]>>(generation, `${accountPath(id)}/imports/index.json`);
+  validateEnvelope(imports, id, generation.revision);
+  const payloads: unknown[] = [];
+  for (const entry of imports.payload) {
+    const source = await readFile<Envelope>(generation, entry.path);
+    validateEnvelope(source, id, generation.revision);
+    payloads.push(source.payload);
+  }
+  const importBackups = await decodeImportSources(payloads);
   return { ...extensions.payload, accountId: id, username: account.username, registeredAt: account.registeredAt, profile: account.profile,
-    settings: account.settings, cardCollections: account.cardCollections, hits: entries.sort((a, b) => a.ordinal - b.ordinal).map(entry => entry.hit) };
+    settings: account.settings, cardCollections: account.cardCollections, hits: entries.sort((a, b) => a.ordinal - b.ordinal).map(entry => entry.hit),
+    ...(importBackups.length ? { importBackups } : {}) };
 };
 export const resetSnapshots = (): void => {
   state = Object.freeze({ status: 'booting', revision: '0', diagnostics: [] });

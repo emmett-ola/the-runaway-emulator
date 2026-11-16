@@ -1,5 +1,6 @@
 import { Zip, ZipDeflate, ZipPassThrough } from 'fflate';
 import { encodeCanonical, sha256 } from '../../../shared/codec';
+import { validateCanonicalFiles } from '../storage';
 import { version as APP_VERSION } from '../version';
 import type { FileDescriptor, Manifest, RecoverySnapshot, VirtualFile } from '../storage';
 import {
@@ -124,6 +125,13 @@ export const createExportArchive = async (source: ArchiveSource, username: strin
   }
   if (seen.size !== paths.length) refuse('missing-file', 'Pinned export is missing a selected payload.');
   const manifest = manifestFor(committed.deviceId, committed.revision, 'user', selected.accountId, descriptors, exportedAt);
+  await validateCanonicalFiles(manifest, async path => {
+    if (path === 'manifest.json') return encodeCanonical(manifest);
+    if (path === directoryOutput.path) return rewritten;
+    const file = await oneFile(source, path);
+    await verifyExportFile(file, byPath.get(path)!);
+    return file.bytes;
+  });
   return stageZip(manifest, async function* () {
     for (const path of paths) {
       if (path === directoryOutput.path) yield { path, bytes: rewritten };

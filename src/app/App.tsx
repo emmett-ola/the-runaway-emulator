@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Login } from '../ui/Login';
+import { RecoveryPanel } from '../ui/RecoveryPanel';
 import { AppRoutes } from './routes';
 import { useSession } from './session';
 import { SceneSession } from '../features/scene';
@@ -18,6 +19,7 @@ function AppContent() {
   const { username, handleLogin, handleLogout } = useSession();
   const storageState = useStorageState();
   const [hydrated, setHydrated] = useState(false);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -41,13 +43,12 @@ function AppContent() {
     return () => { active = false; };
     // Session commands only change username; do not restart hydration per render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username]);
+  }, [username, bootAttempt]);
 
-  if (error || storageState.status === 'blocked') {
-    return <div role="alert">
-      <p>{error || String(storageState.diagnostics[0]?.message || i18n.t('login.error.login_failed'))}</p>
-    </div>;
+  if (storageState.status === 'blocked') {
+    return <div className="login-container"><RecoveryPanel onRestored={() => { setError(''); setBootAttempt(value => value + 1); }} /></div>;
   }
+  if (error) return <p role="alert">{i18n.t('errors.storage_failed')}</p>;
   if (!hydrated || storageState.status !== 'ready') return <div role="status">{i18n.t('profile.loading')}</div>;
   if (!username) return <Login onLogin={handleLogin} />;
   return <div className="app"><AppRoutes username={username} handleLogout={handleLogout} /></div>;

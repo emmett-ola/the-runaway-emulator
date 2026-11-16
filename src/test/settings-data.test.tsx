@@ -7,8 +7,9 @@ import { i18n } from '../lib/i18n';
 import { getStorageState, readFullRecord, readPreferences, readRecord } from '../lib/storage';
 import { writeIdentityCache } from '../lib/storage/preferences';
 import { seedRecord } from './storage-fixtures';
+import { canonicalHit, createArchiveFixture } from './archive-fixtures';
 
-const hit = (id: string, at = 1760000000000) => ({ id, at });
+const hit = (id: string, at = 1760000000000) => canonicalHit(id, at);
 beforeEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
@@ -20,9 +21,12 @@ beforeEach(async () => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function openImport(hits = [hit('new')]) {
   const view = render(<MemoryRouter><Settings /></MemoryRouter>);
-  // Retained legacy-positive fixture: JSON acceptance is an explicit cutover conflict, not a fake ZIP.
-  const file = new File([JSON.stringify({ username: 'other', hits, settings: { theme: 'foreign', timezone: 'UTC' } })], 'restore.json', { type: 'application/json' });
-  fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [file] } });
+  const { file } = await createArchiveFixture([{ username: 'other', registeredAt: 1, hits }], {
+    metadata: { theme: 'foreign', timezone: 'UTC' },
+  });
+  const picker = view.container.querySelector('input[type="file"]')!;
+  expect(picker).toHaveAttribute('accept', '.zip');
+  fireEvent.change(picker, { target: { files: [file] } });
   await waitFor(() => {
     expect(window.alert).not.toHaveBeenCalled();
     expect(view.getByText(i18n.t('import_dialog.title'))).toBeInTheDocument();
@@ -38,7 +42,7 @@ describe('settings data-management invariants', () => {
     expect(replace).toBeDisabled();
     fireEvent.click(replace);
     expect((await readFullRecord('current')).hits.map(h => h.id)).toEqual(['old']);
-    fireEvent.click(view.getByRole('checkbox', { name: i18n.t('import_dialog.replace') }));
+    fireEvent.click(view.getByRole('checkbox', { name: i18n.t('import_dialog.replace_records') }));
     fireEvent.click(replace);
     await waitFor(async () => expect((await readFullRecord('current')).hits.map(h => h.id)).toEqual(['new']));
     expect(await readFullRecord('current')).toMatchObject({ username: 'current', registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });

@@ -108,4 +108,17 @@ export interface Generation {
 export interface Current { generation: string; revision: string; manifestDigest: string }
 export interface Pin { id: string; generation: string; expiresAt: number }
 export interface VirtualFile { path: string; bytes: Uint8Array }
-export interface RecoverySnapshot { diagnostics: readonly Diagnostic[]; current: Current | null; readableGeneration: string | null; readOnly: true; files: VirtualFile[] }
+export interface RecoveryTree {
+  generation: string;
+  revision: string;
+  current: boolean;
+  accounts: { accountId: string; handle: string; total: number; registeredAt: number }[];
+}
+export interface RecoverySnapshot {
+  diagnostics: readonly Diagnostic[];
+  current: Current | null;
+  readableGeneration: string | null;
+  readableTree: RecoveryTree | null;
+  readOnly: true;
+  files: VirtualFile[];
+}

@@ -10,11 +10,11 @@ it('blocks a verified write without SubtleCrypto and preserves current for a saf
   const crypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto')!;
   Object.defineProperty(globalThis, 'crypto', { configurable: true, value: { randomUUID: globalThis.crypto.randomUUID.bind(globalThis.crypto) } });
   try {
-    await expect(appendHit(id, { id: 'unverified', at: 0 })).rejects.toThrow();
+    await expect(appendHit(id, { id: 'unverified', at: 0, schemaVersion: 1, recordVersion: '1' })).rejects.toThrow();
     expect(await readCurrent()).toEqual(before);
     expect(getAccountSnapshot(id)?.total).toBe(0);
   } finally { Object.defineProperty(globalThis, 'crypto', crypto); }
-  await appendHit(id, { id: 'verified', at: 1 });
+  await appendHit(id, { id: 'verified', at: 1, schemaVersion: 1, recordVersion: '1' });
   expect((await readFullRecord(id)).hits.map(hit => hit.id)).toEqual(['verified']);
 });
 
@@ -28,7 +28,7 @@ it('restarts an expired pinned read after GC and reports missing generations as 
       attempts++;
       if (attempts === 1) {
         clock.mockReturnValue(Date.now() + 121_000);
-        for (let index = 0; index < 4; index++) await appendHit(id, { id: `competing-${index}`, at: index });
+        for (let index = 0; index < 4; index++) await appendHit(id, { id: `competing-${index}`, at: index, schemaVersion: 1, recordVersion: '1' });
         await garbageCollect();
       }
       await readBlob(generation.map['manifest.json']);

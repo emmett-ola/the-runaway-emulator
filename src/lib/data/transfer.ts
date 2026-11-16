@@ -1,10 +1,14 @@
-import type { HitLog, UserData, Store } from '../../types';
-import { withPinnedGeneration, iterateFiles, readRecoverySnapshot } from '../storage';
+import type { HitLog, UserData } from '../../types';
+import { withPinnedGeneration, iterateFiles, readRecoverySnapshot, readFullRecord, importHits, validateCanonicalTree, decodeImportSources, sourceKey } from '../storage';
+import type { Chunk, Envelope, ImportEntry, ImportIntent, ImportSource } from '../storage';
+import { decodeCanonical } from '../../../shared/codec';
 import { createExportArchive, createRecoveryArchive } from './archive';
-import { ExportError } from './validation';
+import { readArchive } from './archive-import';
+import { ExportError, UUID } from './validation';
 
-export type ImportedUserData = UserData & { importSource?: Store };
+export type ImportedUserData = UserData & { importSources?: readonly ImportSource[] };
 export type ExportSelection = string | { username: string };
+const previews = new WeakMap<ImportedUserData, ImportIntent>();
 
 export const combineImportedHits = (current: HitLog[], incoming: HitLog[]): HitLog[] => {
   const ids = new Set(current.map(hit => hit.id));
@@ -15,17 +19,15 @@ export const combineImportedHits = (current: HitLog[], incoming: HitLog[]): HitL
   })];
 };
 
-/** Legacy pure helper only. No importer may persist this result in increment 13(a). */
+/** Pure preview helper; publication always uses the queued UUID-targeted command below. */
 export const applyImportedData = (current: UserData, incoming: ImportedUserData, mode: 'merge' | 'replace'): UserData => {
-  const source = incoming.importSource ?? { schemaVersion: 2, users: { [incoming.username]: incoming } };
-  const imports = Array.isArray(current.importBackups) ? [...current.importBackups] : current.importBackups === undefined ? [] : [current.importBackups];
-  const serialized = JSON.stringify(source);
-  if (!imports.some(item => JSON.stringify(item) === serialized)) imports.push(source);
-  return {
-    ...current,
-    hits: mode === 'merge' ? combineImportedHits(current.hits, incoming.hits).sort((a, b) => a.at - b.at) : incoming.hits,
-    importBackups: imports,
-  };
+  const imports = [...(current.importBackups ?? [])];
+  for (const source of incoming.importSources ?? []) {
+    const serialized = sourceKey(source);
+    if (!imports.some(item => sourceKey(item) === serialized)) imports.push(source);
+  }
+  const hits = combineImportedHits(mode === 'merge' ? current.hits : [], incoming.hits).sort((a, b) => a.at - b.at);
+  return { ...current, hits, importBackups: imports };
 };
 
 export const createExportDocument = async (selection: ExportSelection): Promise<Uint8Array> => {
@@ -51,32 +53,57 @@ const download = (bytes: Uint8Array, filename: string): void => {
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-  } finally {
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
+  } finally { link.remove(); URL.revokeObjectURL(url); }
 };
-
 export const exportUserData = async (selection: ExportSelection): Promise<void> => {
-  const bytes = await createExportDocument(selection);
-  download(bytes, `runawaylog-${new Date().toISOString().split('T')[0]}.zip`);
+  download(await createExportDocument(selection), `runawaylog-${new Date().toISOString().split('T')[0]}.zip`);
 };
 export const exportRecoveryData = async (): Promise<void> => {
-  const bytes = await createRecoveryArchive(await readRecoverySnapshot());
-  download(bytes, 'runawaylog-recovery.zip');
+  download(await createRecoveryArchive(await readRecoverySnapshot()), 'runawaylog-recovery.zip');
+};
+const readBytes = (file: File): Promise<Uint8Array> => {
+  if (file.size > 64 * 1024 * 1024) return Promise.reject(new ExportError('compressed-limit', 'Archive exceeds 64 MiB compressed.'));
+  if (typeof file.arrayBuffer === 'function') return file.arrayBuffer().then(buffer => new Uint8Array(buffer));
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new ExportError('file', 'Archive bytes are inaccessible.'));
+    reader.onload = () => reader.result instanceof ArrayBuffer ? resolve(new Uint8Array(reader.result)) : reject(new ExportError('file', 'Archive bytes are inaccessible.'));
+    reader.readAsArrayBuffer(file);
+  });
 };
 
-/** Import parsing/preview is deliberately deferred to ADR 0006 increment 13(b). */
-export const importUserData = (file: File, username?: string): Promise<ImportedUserData> => {
-  void file;
-  void username;
-  return Promise.reject(new ExportError('import-deferred', 'Archive import is deferred to the import/recovery implementation increment.'));
+/** Entire-archive validation and preview are write-free; source handles never select identity. */
+export const importUserData = async (file: File, sourceAccountId?: string): Promise<ImportedUserData> => {
+  const { manifest, files } = await readArchive(await readBytes(file));
+  await validateCanonicalTree(manifest, files, { import: true });
+  const load = <T>(path: string): T => decodeCanonical(files.get(path)!) as T;
+  const directory = load<{ accounts: { accountId: string; handle: string; registeredAt: number }[] }>('shared/accounts.json');
+  const selected = sourceAccountId === undefined ? directory.accounts.length === 1 ? directory.accounts[0] : undefined
+    : directory.accounts.find(entry => entry.accountId === sourceAccountId);
+  if (!selected) throw new ExportError('source-account', 'Select an explicit source account UUID; the archive is ambiguous or the source is absent.');
+  const root = `accounts/${selected.accountId}/`;
+  const entries = [...files].filter(([path]) => path.startsWith(`${root}run/`) && path !== `${root}run/index.json`)
+    .flatMap(([path]) => load<Chunk>(path).entries).sort((a, b) => a.ordinal - b.ordinal);
+  const profile = load<Envelope<{ fields: Record<string, unknown>; email?: string }>>(`${root}profile.json`).payload;
+  const settings = load<Envelope<Record<string, unknown>>>(`${root}settings.json`).payload;
+  const games = load<Envelope<{ settings: Record<string, unknown>; cardCollections: Record<string, number> }>>(`${root}plugins/games.json`).payload;
+  const sourcePayloads = load<Envelope<ImportEntry[]>>(`${root}imports/index.json`).payload.map(entry => load<Envelope>(entry.path).payload);
+  const sources = await decodeImportSources(sourcePayloads);
+  // Sources remain flat documents: do not wrap earlier import envelopes or export-time metadata.
+  sources.push({ accountId: selected.accountId,
+    files: Object.fromEntries([...files.keys()].filter(path => path.startsWith(root) && !path.startsWith(`${root}imports/`)).map(path => [path.slice(root.length), load(path)])),
+    shared: Object.fromEntries(['shared/extensions.json', 'shared/export-metadata.json', 'device/preferences.json'].map(path => [path, load(path)])) });
+  const preview: ImportedUserData = Object.freeze({ username: selected.handle, accountId: selected.accountId, registeredAt: selected.registeredAt,
+    hits: entries.map(entry => entry.hit), profile: { ...profile.fields, ...(profile.email === undefined ? {} : { email: profile.email }) },
+    settings: { ...settings, games: games.settings }, cardCollections: games.cardCollections, importBackups: sources, importSources: sources });
+  previews.set(preview, structuredClone({ hits: preview.hits, sources }));
+  return preview;
 };
 
-/** Retains the dormant synchronous UI signature, but cannot read or mutate storage. */
-export const confirmImportedData = (username: string, incoming: ImportedUserData, mode: 'merge' | 'replace'): UserData => {
-  void username;
-  void incoming;
-  void mode;
-  throw new ExportError('import-deferred', 'Archive import confirmation is deferred to the import/recovery implementation increment.');
+export const confirmImportedData = async (targetAccountId: string, incoming: ImportedUserData, mode: 'merge' | 'replace'): Promise<UserData> => {
+  if (!UUID.test(targetAccountId)) throw new ExportError('target-account', 'Confirm an explicit target account UUID.');
+  const intent = previews.get(incoming);
+  if (!intent) throw new ExportError('preview', 'Validate the original ZIP before confirming an import.');
+  await importHits(targetAccountId, intent, mode);
+  return readFullRecord(targetAccountId);
 };

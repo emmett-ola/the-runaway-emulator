@@ -133,7 +133,7 @@ describe.each(locales)('i18n rendered surfaces — %s', locale => {
   it('Settings opens the loaded current-month calendar, never the Settings print surface', async () => {
     await setTimezonePreference('America/Los_Angeles');
     const timestamp = Date.UTC(2026, 11, 1, 1);
-    await repository.appendHit(accountId(), { id: 'loaded', at: timestamp });
+    await repository.appendHit(accountId(), { schemaVersion: 1, recordVersion: '1', id: 'loaded', at: timestamp });
     const readRunView = vi.spyOn(repository, 'readRunView');
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const { container, getByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);

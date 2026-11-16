@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
 import { useAccountSnapshot, updatePlugin } from '../../storage';
-import { readIdentityCache } from '../../lib/storage/preferences';
+import { readIdentityCache } from '../../lib/storage';
 import { logout } from '../../auth';
 import { i18n, useT } from '../../lib/i18n';
 import './GamesHub.css';

@@ -22,6 +22,10 @@ const refresh = async (): Promise<void> => {
   }
 };
 const reconcile = (): void => { void refresh().catch(blockStorage); };
+const checkedRead = async <T>(operation: () => Promise<T>): Promise<T> => {
+  try { return await operation(); }
+  catch (error) { blockStorage(error); throw error; }
+};
 export const initializeStorage = (): Promise<void> => {
   initialization ??= (async () => {
     try {
@@ -30,7 +34,7 @@ export const initializeStorage = (): Promise<void> => {
       else await withPinnedGeneration(async generation => {
         await publishGeneration(generation);
         const { garbageCollect } = await import('./recovery');
-        await garbageCollect();
+        void garbageCollect().catch(() => undefined);
       });
       configurePreferences(updatePreferences);
       if (typeof window !== 'undefined') {
@@ -43,23 +47,27 @@ export const initializeStorage = (): Promise<void> => {
         channel.onmessage = reconcile;
       }
       setCommitNotification(() => { channel?.postMessage('revision'); });
-    } catch (error) { blockStorage(error); throw error; }
+    } catch (error) { initialization = undefined; blockStorage(error); throw error; }
   })();
   return initialization;
 };
-export const readStore = async (): Promise<StoreSnapshot> => { requireReady(); await refresh(); return getStoreSnapshot(); };
+export const readStore = async (): Promise<StoreSnapshot> => { requireReady(); await checkedRead(refresh); return getStoreSnapshot(); };
 export const readRecord = async (id: string): Promise<AccountSnapshot | null> => { await readStore(); return getAccountSnapshot(id); };
 export const readFullRecord = async (id: string) => {
   await readStore();
   const accountId = resolveSnapshotId(id);
-  return withPinnedGeneration(generation => readFullFrom(generation, accountId));
+  return checkedRead(() => withPinnedGeneration(async generation => {
+    const { verifyHealthyGeneration } = await import('./recovery');
+    await verifyHealthyGeneration(generation);
+    return readFullFrom(generation, accountId);
+  }));
 };
 export const readRunView = async (id: string, timezone: string, month: Date | string): Promise<RunView> => {
   await readStore();
   const accountId = resolveSnapshotId(id);
   const cached = getRunView(accountId, timezone, month);
   if (cached) return cached;
-  const view = await withPinnedGeneration(generation => buildRunView(generation, accountId, timezone, month));
+  const view = await checkedRead(() => withPinnedGeneration(generation => buildRunView(generation, accountId, timezone, month)));
   publishRunView(view);
   if (view.revision !== getStorageState().revision) return readRunView(id, timezone, month);
   return view;
@@ -81,7 +89,8 @@ export async function* iterateFiles(generation: Generation, paths?: readonly str
       await verifyBlob(blob, path === 'manifest.json' ? undefined : manifest.files.find(file => file.path === path));
       yield { path, bytes: blob.bytes.slice() };
     }
-  } finally { await releasePin(pin); }
+  } catch (error) { blockStorage(error); throw error; }
+  finally { await releasePin(pin); }
 }
 export const resetStorage = async (): Promise<void> => {
   await flushWrites();

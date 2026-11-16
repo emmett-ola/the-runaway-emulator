@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { animate } from 'animejs';
 import { i18n, type SupportedLanguage } from '../lib/i18n';
 import { login } from '../auth';
-import { StorageBlockedError } from '../lib/storage';
-import { exportRecoveryData } from '../lib/data/transfer';
+import { getStorageState } from '../lib/storage';
+import { useStorageState } from '../storage';
+import { RecoveryPanel } from './RecoveryPanel';
 import './Login.css';
 
 interface LoginProps {
@@ -14,7 +15,7 @@ export const Login = ({ onLogin }: LoginProps) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [storageBlocked, setStorageBlocked] = useState(false);
+  const storageState = useStorageState();
   const [loading, setLoading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.getLanguage());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,7 +34,6 @@ export const Login = ({ onLogin }: LoginProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setStorageBlocked(false);
     
     if (!username.trim()) {
       setError(i18n.t('login.error.username_required'));
@@ -48,8 +48,7 @@ export const Login = ({ onLogin }: LoginProps) => {
       
       onLogin(username.trim());
     } catch (err: unknown) {
-      setStorageBlocked(err instanceof StorageBlockedError);
-      setError(err instanceof Error ? err.message : i18n.t('login.error.login_failed'));
+      setError(getStorageState().status === 'blocked' ? i18n.t('recovery.blocked') : err instanceof Error ? err.message : i18n.t('login.error.login_failed'));
     } finally {
       setLoading(false);
     }
@@ -66,10 +65,7 @@ export const Login = ({ onLogin }: LoginProps) => {
     }
   };
 
-  const handleRecoveryExport = async () => {
-    try { await exportRecoveryData(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-  };
+  if (storageState.status === 'blocked') return <div className="login-container"><RecoveryPanel /></div>;
 
   return (
     <div className="login-container" ref={containerRef}>
@@ -94,7 +90,6 @@ export const Login = ({ onLogin }: LoginProps) => {
         <p className="login-slogan">"{i18n.t('login.slogan')}"</p>
         
         {error && <div className="login-error" role="alert">{error}</div>}
-        {storageBlocked && <button type="button" onClick={handleRecoveryExport}>{i18n.t('settings.export_data')}</button>}
         
         <form onSubmit={handleSubmit}>
           <div className="login-form-group">

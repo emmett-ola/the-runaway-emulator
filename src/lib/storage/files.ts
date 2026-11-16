@@ -51,12 +51,14 @@ export const verifyTree = async (generation: Generation, changed?: ReadonlySet<s
   await verifyBlob(manifestBlob);
   if (manifestBlob.sha256 !== generation.manifestDigest) throw new StorageError('manifest-digest', 'Generation manifest digest mismatch.');
   const manifest = await readFile<Manifest>(generation, 'manifest.json');
+  const { validateManifest, validateDescriptor } = await import('./tree-validation');
+  validateManifest(manifest);
   if (manifest.format !== 'runawaylog-files' || manifest.formatVersion !== 1 || manifest.schemaVersion !== 2 || manifest.revision !== generation.revision) throw new StorageError('manifest', 'Unsupported or inconsistent manifest.');
   const paths = Object.keys(generation.map).sort();
   const listed = ['manifest.json', ...manifest.files.map(file => file.path)].sort();
   if (new Set(listed).size !== listed.length || JSON.stringify(paths) !== JSON.stringify(listed)) throw new StorageError('membership', 'Manifest and generation membership disagree.');
   for (const file of manifest.files) {
-    validatePath(file.path);
+    validateDescriptor(file, generation.revision);
     if (!changed || changed.has(file.path)) {
       const blob = await readBlob(generation.map[file.path]);
       await verifyBlob(blob, file);

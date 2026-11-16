@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
 import { useAccountSnapshot, updateProfile } from '../../storage';
-import { readIdentityCache } from '../../lib/storage/preferences';
+import { readIdentityCache } from '../../lib/storage';
 import { logout } from '../../auth';
 import { getGravatarUrl } from './gravatar';
 import { formatMemberSince } from './memberSince';

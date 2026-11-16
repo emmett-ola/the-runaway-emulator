@@ -3,7 +3,7 @@ import { colorThemes, getThemeById, applyTheme } from '../../themes';
 import { getTheme, setTheme, type Theme } from '../../darkMode';
 import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../lib/time';
 import { i18n, type SupportedLanguage } from '../../lib/i18n';
-import { getCalendarTheme, setCalendarTheme, subscribePreferences } from '../../lib/storage/preferences';
+import { getCalendarTheme, setCalendarTheme, subscribePreferences } from '../../lib/storage';
 import './SettingsMenu.css';
 
 interface SettingsMenuProps {
@@ -76,7 +76,7 @@ export const SettingsMenu = ({ onExport, onImport, onPrint, onTimezoneChange }: 
     pending.current = true;
     setError('');
     try { await command(); onSaved(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    catch { setError(i18n.t('errors.storage_failed')); }
     finally { pending.current = false; }
   };
 
@@ -98,7 +98,7 @@ export const SettingsMenu = ({ onExport, onImport, onPrint, onTimezoneChange }: 
 
   const handleMenuAction = async (action: () => void | Promise<void>) => {
     try { await action(); setIsOpen(false); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    catch { setError(i18n.t('errors.storage_failed')); }
   };
 
   return (

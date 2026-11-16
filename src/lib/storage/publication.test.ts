@@ -55,7 +55,7 @@ describe('publication completion and revision fences', () => {
       operation.addEventListener('success', () => { putSucceeded = true; tx.abort(); }, { once: true });
     });
     try {
-      await expect(appendHit(id, { id: 'must-not-publish', at: 0 })).rejects.toThrow();
+      await expect(appendHit(id, { id: 'must-not-publish', at: 0, schemaVersion: 1, recordVersion: '1' })).rejects.toThrow();
       expect(putSucceeded).toBe(true);
       expect(await readCurrent()).toEqual(before);
       expect(getStoreSnapshot()).toBe(snapshot);
@@ -63,7 +63,7 @@ describe('publication completion and revision fences', () => {
       expect(getAccountSnapshot(id)?.total).toBe(0);
       expect(notifications).not.toHaveBeenCalled();
     } finally { restore(); unsubscribe(); }
-    await appendHit(id, { id: 'safe-retry', at: 1 });
+    await appendHit(id, { id: 'safe-retry', at: 1, schemaVersion: 1, recordVersion: '1' });
     expect((await readFullRecord(id)).hits.map(hit => hit.id)).toEqual(['safe-retry']);
   });
 
@@ -100,20 +100,20 @@ describe('publication completion and revision fences', () => {
 
   it('preserves an accepted __proto__ handle, its UUID and hits across reload', async () => {
     const id = await create('__proto__');
-    await appendHit(id, { id: 'prototype-safe', at: 0, extra: [null, '原始'] });
+    await appendHit(id, { id: 'prototype-safe', at: 0, schemaVersion: 1, recordVersion: '1', extra: [null, '原始'] });
     expect(Object.hasOwn(getStoreSnapshot().users, '__proto__')).toBe(true);
     expect(getAccountSnapshot('__proto__')?.accountId).toBe(id);
     await resetStorage(); await initializeStorage();
     expect(Object.hasOwn(getStoreSnapshot().users, '__proto__')).toBe(true);
     expect(await readRecord('__proto__')).toMatchObject({ accountId: id, username: '__proto__', total: 1 });
-    expect((await readFullRecord(id)).hits).toEqual([{ id: 'prototype-safe', at: 0, extra: [null, '原始'] }]);
+    expect((await readFullRecord(id)).hits).toEqual([{ id: 'prototype-safe', at: 0, schemaVersion: 1, recordVersion: '1', extra: [null, '原始'] }]);
     expect(Object.getPrototypeOf(getStoreSnapshot().users)).toBeNull();
   });
 
   it('refuses to roll a newer immutable snapshot back when older hydration finishes later', async () => {
     const id = await create();
     const older = await currentGeneration();
-    await appendHit(id, { id: 'newer-receipt', at: 1 });
+    await appendHit(id, { id: 'newer-receipt', at: 1, schemaVersion: 1, recordVersion: '1' });
     const pointer = await readCurrent(), snapshot = getStoreSnapshot(), state = getStorageState();
     const notifications = vi.fn(), unsubscribe = subscribe(notifications);
     try {

@@ -1,28 +1,50 @@
 import type { Hit, UserProfile, UserSettings } from './model';
 import type { BlobRecord, CommitReceipt, DevicePreferences, Envelope, Generation } from './state-model';
-import { accountPath, makeBlob, readFile } from './files';
-import { appendChunk, chunkPath, emptyIndex, utcPartition } from './chunks';
+import { accountPath, makeBlob, readFile, verifyTree } from './files';
+import { appendChunk, chunkPath, emptyIndex, utcPartition, validateHit } from './chunks';
 import { buildCandidate, getDeviceId, publishCandidate, withPinnedGeneration } from './commit';
 import { ConflictError, getGeneration, readCurrent, StorageError } from './idb';
 import { blockStorage, getAccountSnapshot, getStorageState, hydrateAccount, publishGeneration, requireReady } from './snapshot';
 import type { Directory, GamesPayload, Identity } from './snapshot';
 import { getPreferencesSnapshot, publishPreferences, validatePreferences } from './preferences';
+import { validateDirectory } from './envelope-validation';
 
 let queue: Promise<void> = Promise.resolve();
 let afterCommit: (() => void) | undefined;
 export const setCommitNotification = (notify: () => void): void => { afterCommit = notify; };
-type Intent = (base: Generation | null, revision: string) => Promise<{ changes: Map<string, BlobRecord | null>; accountId?: string }>;
+export const notifyCommitted = (): void => { afterCommit?.(); };
+export const serializeStorageOperation = <T>(operation: () => Promise<T>): Promise<T> => {
+  const result = queue.then(operation);
+  queue = result.then(() => undefined, () => undefined);
+  return result;
+};
+type Intent = (base: Generation | null, revision: string) => Promise<{ changes: Map<string, BlobRecord | null>; accountId?: string; fullValidation?: boolean }>;
 const fatal = (error: unknown): boolean => error instanceof StorageError && ['integrity', 'descriptor', 'manifest-digest', 'missing-file', 'missing-blob', 'membership', 'index', 'ownership', 'index-descriptor', 'current'].includes(error.code);
-const enqueue = (intent: Intent): Promise<CommitReceipt> => {
-  const operation = queue.then(async () => {
+export const enqueue = (intent: Intent): Promise<CommitReceipt> => {
+  return serializeStorageOperation(async () => {
     requireReady();
     for (let attempt = 0; attempt < 16; attempt++) {
       try {
         const current = await readCurrent();
         const execute = async (base: Generation | null) => {
+          if (base) {
+            try {
+              await verifyTree(base, new Set(Object.keys(base.map).filter(path => !/\/(?:run\/y|imports\/i-)/.test(path))));
+              const directory = await readFile<Directory>(base, 'shared/accounts.json');
+              validateDirectory(directory, base.revision);
+              for (const entry of directory.accounts) {
+                const account = await hydrateAccount(base, entry.accountId);
+                if (account.username !== entry.handle || account.registeredAt !== entry.registeredAt) throw new StorageError('directory', 'Directory and account identity disagree.');
+              }
+            } catch (error) {
+              if (!(error instanceof Error && 'code' in error && error.code === 'CRYPTO_UNAVAILABLE')) blockStorage(error);
+              throw error;
+            }
+          }
           const revision = String(BigInt(base?.revision ?? '0') + 1n);
           const result = await intent(base, revision);
           const candidate = await buildCandidate(base, result.changes, await getDeviceId() ?? crypto.randomUUID());
+          candidate.fullValidation = result.fullValidation;
           await publishCandidate(candidate);
           return { candidate, accountId: result.accountId };
         };
@@ -43,12 +65,10 @@ const enqueue = (intent: Intent): Promise<CommitReceipt> => {
     }
     throw new StorageError('contention', 'Storage changed too frequently; retry this command.');
   });
-  queue = operation.then(() => undefined, () => undefined);
-  return operation;
 };
 export const flushWrites = (): Promise<void> => queue;
 export const resetQueue = (): void => { queue = Promise.resolve(); afterCommit = undefined; };
-const envelope = <T>(id: string, payload: T, revision: string, now = Date.now()): Envelope<T> => ({ accountId: id, schemaVersion: 1, recordVersion: revision, createdAt: now, updatedAt: now, payload });
+export const envelope = <T>(id: string, payload: T, revision: string, now = Date.now()): Envelope<T> => ({ accountId: id, schemaVersion: 1, recordVersion: revision, createdAt: now, updatedAt: now, payload });
 export const createAccount = (handle: string, profile: UserProfile = {}): Promise<CommitReceipt> => {
   const id = crypto.randomUUID();
   const registeredAt = Date.now();
@@ -74,7 +94,7 @@ export const createAccount = (handle: string, profile: UserProfile = {}): Promis
     return { changes, accountId: id };
   });
 };
-const resolveAccount = async (base: Generation | null, id: string) => {
+export const resolveAccount = async (base: Generation | null, id: string) => {
   if (!base) throw new StorageError('missing-account', 'The account does not exist.');
   const directory = await readFile<Directory>(base, 'shared/accounts.json');
   const entry = directory.accounts.find(account => account.accountId === id);
@@ -85,6 +105,7 @@ export const appendHit = (id: string, hit: Hit): Promise<CommitReceipt> => {
   // Freeze the original intent before it enters the queue; CAS retries never allocate a new hit.
   const immutableHit = structuredClone(hit);
   return enqueue(async (base, revision) => {
+    validateHit(immutableHit);
     const { base: generation, root } = await resolveAccount(base, id);
     const account = await hydrateAccount(generation, id);
     if (account.index.hitIds.includes(immutableHit.id)) throw new StorageError('duplicate-hit', 'Hit id already exists.');

@@ -21,7 +21,7 @@ describe('storage', () => {
       expect(await loadUserData('testuser')).toBeNull();
     });
     it('loads existing user data', async () => {
-      const userData: UserData = { username: 'testuser', registeredAt: 1234567890000, hits: [{ id: '1', at: 1234567890000 }] };
+      const userData: UserData = { username: 'testuser', registeredAt: 1234567890000, hits: [{ schemaVersion: 1, recordVersion: '1', id: '1', at: 1234567890000 }] };
       await seedRecord(userData);
       const result = await loadUserData('testuser');
       expect(result?.username).toBe(userData.username);
@@ -71,10 +71,10 @@ describe('storage', () => {
       expect(localStorage.getItem('runawaylog-data')).toBeNull();
     });
     it('updates existing user data', async () => {
-      const initialData: UserData = { username: 'testuser', registeredAt: 1, hits: [{ id: '1', at: 1234567890000 }] };
+      const initialData: UserData = { username: 'testuser', registeredAt: 1, hits: [{ schemaVersion: 1, recordVersion: '1', id: '1', at: 1234567890000 }] };
       await seedRecord(initialData);
       const account = (await readRecord('testuser'))!;
-      const next = { id: '2', at: 1234567900000 };
+      const next = { schemaVersion: 1, recordVersion: '1', id: '2', at: 1234567900000 };
       await appendHit(account.accountId, next);
       await updateProfile(account.accountId, { email: 'updated@example.test' });
       const record = await readFullRecord('testuser');
@@ -107,7 +107,7 @@ describe('storage', () => {
       expect((await readFullRecord('testuser')).hits).toEqual([hit]);
     });
     it('adds hit to existing user', async () => {
-      const userData: UserData = { username: 'testuser', registeredAt: 1, hits: [{ id: '1', at: 1234567890000 }] };
+      const userData: UserData = { username: 'testuser', registeredAt: 1, hits: [{ schemaVersion: 1, recordVersion: '1', id: '1', at: 1234567890000 }] };
       await seedRecord(userData);
       expect(await addHit('testuser')).toBeTruthy();
       expect((await loadUserData('testuser'))?.total).toBe(2);

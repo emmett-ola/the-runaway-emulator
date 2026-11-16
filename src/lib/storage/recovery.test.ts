@@ -42,7 +42,8 @@ const fixture = async (hits: { id: string; at: number; [key: string]: unknown }[
   const changes = new Map<string, BlobRecord | null>();
   let index = emptyIndex(ACCOUNT, revision);
   const chunks = new Map<string, Chunk>();
-  for (const hit of hits) {
+  for (const input of hits) {
+    const hit = { schemaVersion: 1 as const, recordVersion: '1', ...input };
     const month = new Date(hit.at).getUTCMonth();
     const tail = [...chunks.values()].filter(chunk => new Date(chunk.entries[0].hit.at).getUTCMonth() === month).at(-1) ?? null;
     const result = await appendChunk(ACCOUNT, index, hit, tail, revision);
@@ -157,7 +158,7 @@ describe('full committed-generation recovery audit', () => {
       tx.objectStore('generations').put(forged, forged.id);
       tx.objectStore('control').put({ generation: forged.id, revision: forged.revision, manifestDigest: forged.manifestDigest }, 'current');
     });
-    await expect(verifyHealthyGeneration(forged)).rejects.toThrow('Duplicate hit identity');
+    await expect(verifyHealthyGeneration(forged)).rejects.toThrow('Duplicate hit identity or invalid run index hit ids in ordinal order.');
   });
 
   it('rejects self-consistent rehashed metadata corrupted after publication with the wrong ownership', async () => {
@@ -174,7 +175,7 @@ describe('full committed-generation recovery audit', () => {
       tx.objectStore('generations').put(forged, forged.id);
       tx.objectStore('control').put({ generation: forged.id, revision: forged.revision, manifestDigest: forged.manifestDigest }, 'current');
     });
-    await expect(verifyHealthyGeneration(forged)).rejects.toThrow('Invalid account envelope');
+    await expect(verifyHealthyGeneration(forged)).rejects.toThrow('Invalid canonical account envelope or ownership.');
   });
 
   it('remains read-only with no healthy generation and preserves staged/quarantined raw evidence', async () => {

@@ -10,7 +10,7 @@ import { getStorageMode, setStorageMode, type StorageMode, loadUserData, useAcco
 import { readRunView } from '../../lib/storage';
 import { logout } from '../../auth';
 import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from '../../lib/data/transfer';
-import { getCalendarTheme, setCalendarTheme, readIdentityCache, subscribePreferences } from '../../lib/storage/preferences';
+import { getCalendarTheme, setCalendarTheme, readIdentityCache, subscribePreferences } from '../../lib/storage';
 import { PrintCalendar } from '../print';
 import type { RunView } from '../../types';
 import '../../ui/SettingsLayout.css';
@@ -59,7 +59,7 @@ export const Settings = () => {
   // Handle export data
   const handleExport = async () => {
     try { await exportUserData(username); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    catch { setError(i18n.t('errors.export_failed')); }
   };
   
   // Handle import click
@@ -73,11 +73,11 @@ export const Settings = () => {
     if (!file) return;
     
     try {
-      const importedData = await importUserData(file, username);
+      const importedData = await importUserData(file);
       setReplaceConfirmed(false);
       setImportDialog({ show: true, data: importedData });
-    } catch (error) {
-      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    } catch {
+      alert(i18n.t('errors.import_failed', { error: i18n.t('errors.archive_invalid') }));
     }
     
     if (event.target) {
@@ -87,31 +87,31 @@ export const Settings = () => {
   
   // Handle import merge
   const handleImportMerge = async () => {
-    if (!importDialog.data) return;
+    if (!importDialog.data || !account) return;
     
     try {
       const userData = await loadUserData(username);
-      const mergedData = await confirmImportedData(username, importDialog.data, 'merge');
+      const mergedData = await confirmImportedData(account.accountId, importDialog.data, 'merge');
       const newHitCount = mergedData.hits.length - (userData?.total ?? 0);
       setImportDialog({ show: false, data: null });
       alert(i18n.t('errors.import_merged', { count: newHitCount }));
       window.location.reload();
-    } catch (error) {
-      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    } catch {
+      alert(i18n.t('errors.import_failed', { error: i18n.t('errors.archive_invalid') }));
     }
   };
   
   // Handle import replace
   const handleImportReplace = async () => {
-    if (!importDialog.data || !replaceConfirmed) return;
+    if (!importDialog.data || !account || !replaceConfirmed) return;
     
     try {
-      await confirmImportedData(username, importDialog.data, 'replace');
+      const replaced = await confirmImportedData(account.accountId, importDialog.data, 'replace');
       setImportDialog({ show: false, data: null });
-      alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
+      alert(i18n.t('errors.import_replaced', { count: replaced.hits.length }));
       window.location.reload();
-    } catch (error) {
-      alert(i18n.t('errors.import_failed', { error: error instanceof Error ? error.message : 'Unknown error' }));
+    } catch {
+      alert(i18n.t('errors.import_failed', { error: i18n.t('errors.archive_invalid') }));
     }
   };
   
@@ -298,7 +298,7 @@ export const Settings = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".json"
+                  accept=".zip"
                   onChange={handleImportFile}
                   style={{ display: 'none' }}
                 />
@@ -354,28 +354,28 @@ export const Settings = () => {
                 <div className="import-dialog" role="dialog" aria-modal="true" aria-label={i18n.t('import_dialog.title')}>
                   <h3 className="import-dialog-title">{i18n.t('import_dialog.title')}</h3>
                   <div className="import-dialog-content">
+                    <p>{i18n.t('import_dialog.zip_only')}</p>
+                    {account && <p>{i18n.t('import_dialog.target', { handle: account.username, accountId: account.accountId })}</p>}
                     <p>
                       <strong>{i18n.t('import_dialog.from')}</strong> {importDialog.data.username}<br />
                       <strong>{i18n.t('import_dialog.escape_dreams')}</strong> {importDialog.data.hits.length}
                     </p>
                     {importDialog.data.username !== username && (
                       <div className="import-dialog-warning">
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: i18n.t('import_dialog.warning', { 
-                            username: importDialog.data.username, 
-                            currentUsername: username 
-                          }) 
-                        }} />
+                        <p>{i18n.t('import_dialog.source_warning', {
+                          username: importDialog.data.username,
+                          currentUsername: username
+                        })}</p>
                       </div>
                     )}
                     <p>
                       <strong>{i18n.t('import_dialog.merge')}</strong><br />
-                      <strong>{i18n.t('import_dialog.replace')}</strong>
+                      <strong>{i18n.t('import_dialog.replace_records')}</strong>
                     </p>
                   </div>
                   <label className="import-replace-confirmation">
                     <input type="checkbox" checked={replaceConfirmed} onChange={event => setReplaceConfirmed(event.target.checked)} />
-                    {i18n.t('import_dialog.replace')}
+                    {i18n.t('import_dialog.replace_records')}
                   </label>
                   <div className="import-dialog-actions">
                     <button onClick={handleImportMerge} className="settings-button primary">

@@ -5,8 +5,9 @@ import { i18n } from '../lib/i18n';
 import { ensureRunView, readFullRecord, readPreferences } from '../lib/storage';
 import { getSavedTimezone } from '../lib/time';
 import { seedRecord } from './storage-fixtures';
+import { canonicalHit, createArchiveFixture } from './archive-fixtures';
 vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));
-const hit = (id: string) => ({ id, at: 1760000000000 });
+const hit = (id: string) => canonicalHit(id, 1760000000000);
 beforeEach(async () => {
   localStorage.clear(); await i18n.setLanguage('en_us');
   await seedRecord({ username: 'current', hits: [hit('old')], registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });
@@ -18,14 +19,18 @@ it('header import obeys confirmation and preserves profile, games, identity, and
   const preferences = await readPreferences();
   const view = render(<Dashboard username="current" onLogout={vi.fn()} />);
   await waitFor(() => expect(view.container.querySelector('.hit-count strong')).toHaveTextContent('1'), { timeout: 5000 });
-  // Keep the original legacy-positive selection as explicit unsupported-format conflict evidence.
-  fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [new File([JSON.stringify({ username: 'other', hits: [hit('new')], settings: { timezone: 'UTC', theme: 'foreign' } })], 'restore.json')] } });
+  const { file } = await createArchiveFixture([{ username: 'other', registeredAt: 1, hits: [hit('new')] }], {
+    metadata: { timezone: 'UTC', theme: 'foreign' },
+  });
+  const picker = view.container.querySelector('input[type="file"]')!;
+  expect(picker).toHaveAttribute('accept', '.zip');
+  fireEvent.change(picker, { target: { files: [file] } });
   const replace = await waitFor(() => {
     expect(window.alert).not.toHaveBeenCalled();
     return view.getByRole('button', { name: i18n.t('import_dialog.replace_button') });
   });
   expect(replace).toBeDisabled();
-  fireEvent.click(view.getByRole('checkbox', { name: i18n.t('import_dialog.replace') }));
+  fireEvent.click(view.getByRole('checkbox', { name: i18n.t('import_dialog.replace_records') }));
   fireEvent.click(replace);
   await waitFor(async () => expect((await readFullRecord('current')).hits.map(h => h.id)).toEqual(['new']));
   expect(await readFullRecord('current')).toMatchObject({ username: 'current', registeredAt: 100, profile: { email: 'kept@example.com' }, settings: { games: { cardDropEnabled: true } } });

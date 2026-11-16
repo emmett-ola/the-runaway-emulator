@@ -13,28 +13,28 @@ const account = async () => (await createAccount('integrity')).accountId!;
 describe('command identity and staged projection integrity', () => {
   it('rejects duplicate ids across changed timestamps and UTC partitions without changing current', async () => {
     const id = await account();
-    await appendHit(id, { id: 'stable', at: 0 });
+    await appendHit(id, { id: 'stable', at: 0, schemaVersion: 1, recordVersion: '1' });
     const before = await readCurrent();
     for (const at of [1, Date.UTC(2026, 10, 1)]) {
-      await expect(appendHit(id, { id: 'stable', at })).rejects.toMatchObject({ code: 'duplicate-hit' });
+      await expect(appendHit(id, { id: 'stable', at, schemaVersion: 1, recordVersion: '1' })).rejects.toMatchObject({ code: 'duplicate-hit' });
       expect(await readCurrent()).toEqual(before);
     }
-    await appendHit(id, { id: 'safe-retry', at: 1 });
+    await appendHit(id, { id: 'safe-retry', at: 1, schemaVersion: 1, recordVersion: '1' });
     expect((await readFullRecord(id)).hits.map(hit => hit.id)).toEqual(['stable', 'safe-retry']);
     await expect(verifyHealthyGeneration(await currentGeneration())).resolves.toBeUndefined();
   });
 
   it('rejects historical ids outside recent fifty using the index without fetching old chunks', async () => {
     const id = await account();
-    await appendHit(id, { id: 'historical', at: 0 });
-    for (let index = 0; index < 51; index++) await appendHit(id, { id: `recent-${index}`, at: Date.UTC(2026, 10, 1) + index });
+    await appendHit(id, { id: 'historical', at: 0, schemaVersion: 1, recordVersion: '1' });
+    for (let index = 0; index < 51; index++) await appendHit(id, { id: `recent-${index}`, at: Date.UTC(2026, 10, 1) + index, schemaVersion: 1, recordVersion: '1' });
     const generation = await currentGeneration();
     const oldChunk = generation.map[`${accountPath(id)}/run/y1970-m01-000001.json`];
     const get = vi.spyOn(IDBObjectStore.prototype, 'get');
     try {
-      await expect(appendHit(id, { id: 'historical', at: Date.UTC(2027, 0, 1) })).rejects.toMatchObject({ code: 'duplicate-hit' });
+      await expect(appendHit(id, { id: 'historical', at: Date.UTC(2027, 0, 1), schemaVersion: 1, recordVersion: '1' })).rejects.toMatchObject({ code: 'duplicate-hit' });
       expect(get.mock.calls.some(([key]) => key === oldChunk)).toBe(false);
-      await appendHit(id, { id: 'new-partition', at: Date.UTC(2027, 0, 1) });
+      await appendHit(id, { id: 'new-partition', at: Date.UTC(2027, 0, 1), schemaVersion: 1, recordVersion: '1' });
       expect(get.mock.calls.some(([key]) => key === oldChunk)).toBe(false);
     } finally { get.mockRestore(); }
     expect(getAccountSnapshot(id)?.index.hitIds[0]).toBe('historical');
@@ -42,7 +42,7 @@ describe('command identity and staged projection integrity', () => {
 
   it('quarantines correctly rehashed false timestamp, bounds and recent projections before publication', async () => {
     const id = await account();
-    await appendHit(id, { id: 'one', at: 0 });
+    await appendHit(id, { id: 'one', at: 0, schemaVersion: 1, recordVersion: '1' });
     const base = await currentGeneration();
     const before = await readCurrent();
     const path = `${accountPath(id)}/run/index.json`;

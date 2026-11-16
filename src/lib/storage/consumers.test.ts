@@ -31,7 +31,7 @@ describe('v2 consumer integration', () => {
     const adapter = new Adapter();
     const legacyBytes = localStorage.getItem('runawaylog-data');
     expect(await adapter.loadUserData('old')).toBeNull();
-    await seedRecord({ username: 'old', registeredAt: 1234567890000, hits: [{ id: 'a', at: 1234567890000, extra: ['keep'] }], profile: { email: 'keep@example.test', unknown: { keep: true } }, unknown: [1, 2] });
+    await seedRecord({ username: 'old', registeredAt: 1234567890000, hits: [{ id: 'a', at: 1234567890000, schemaVersion: 1, recordVersion: '1', extra: ['keep'] }], profile: { email: 'keep@example.test', unknown: { keep: true } }, unknown: [1, 2] });
     await seedRecord({ username: 'peer', registeredAt: 7, hits: [], unknown: true });
     const peer = await readFullRecord('peer');
     const loaded = await adapter.loadUserData('old');
@@ -39,7 +39,7 @@ describe('v2 consumer integration', () => {
     expect(loaded).not.toHaveProperty('hits');
     await updatePlugin(loaded!.accountId, { cardCollections: { keep: 3 } });
     const stored = await readFullRecord('old');
-    expect(stored.hits).toEqual([{ id: 'a', at: 1234567890000, extra: ['keep'] }]);
+    expect(stored.hits).toEqual([{ id: 'a', at: 1234567890000, schemaVersion: 1, recordVersion: '1', extra: ['keep'] }]);
     expect(stored.unknown).toEqual([1, 2]);
     expect(stored.cardCollections).toEqual({ keep: 3 });
     expect(await readFullRecord('peer')).toEqual(peer);
@@ -76,7 +76,7 @@ describe('v2 consumer integration', () => {
   });
 
   it('auth data writes still reject while adapter saves still report failures without changing bytes', async () => {
-    await seedRecord({ username: 'old', registeredAt: 1, hits: [{ id: 'a', at: 1 }] });
+    await seedRecord({ username: 'old', registeredAt: 1, hits: [{ id: 'a', at: 1, schemaVersion: 1, recordVersion: '1' }] });
     const before = await readFullRecord('old');
     const revision = getStorageState().revision;
     const legacyBytes = localStorage.getItem('runawaylog-data');
@@ -94,7 +94,7 @@ describe('v2 consumer integration', () => {
   });
 
   it('preserves credential checking, passwordless demo entry, and refuses registration over an existing record', async () => {
-    await seedRecord({ username: 'old', registeredAt: 1, hits: [{ id: 'a', at: 1 }] });
+    await seedRecord({ username: 'old', registeredAt: 1, hits: [{ id: 'a', at: 1, schemaVersion: 1, recordVersion: '1' }] });
     await login('protected', 'secret');
     const credentials = readIdentityCache('credentials');
     await expect(login('protected', 'wrong')).rejects.toThrow('Invalid username or password');

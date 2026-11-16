@@ -159,8 +159,12 @@ export const zh_cn = {
     "from": "来源：",
     "escape_dreams": "跑路次数：",
     "warning": "⚠️ 此数据来自不同用户 ({username})。<br/>数据将导入到您当前的账户 ({currentUsername})。<br/>如果您想导入到 \"{username}\"，请先退出当前账户并以该用户身份登录。",
+    "source_warning": "来源：{username}。记录将导入所选本地账户 {currentUsername}；不会采用来源账户的身份。",
     "merge": "将新跑路记录添加到当前数据中",
     "replace": "用导入的数据替换所有当前跑路记录",
+    "replace_records": "仅替换跑路记录；保留身份、个人资料、设置和游戏",
+    "zip_only": "仅支持 format-1 ZIP 归档。无法导入 JSON 或旧版导出文件。",
+    "target": "目标账户：{handle}（{accountId}）",
     "merge_button": "合并",
     "replace_button": "替换",
     "cancel_button": "取消"
@@ -195,10 +199,34 @@ export const zh_cn = {
     "showing_last": "显示最近",
     "of": "条，共"
   },
+  "recovery": {
+    "title": "本地数据恢复",
+    "blocked": "当前数据无法读取。保存和登录已阻止；没有替换任何数据。",
+    "loading": "正在检查保留的数据代次…",
+    "previous": "只读旧数据 — 代次 {generation}，修订 {revision}",
+    "current": "当前代次已通过验证。请重新加载后重试；没有自动提升旧数据。",
+    "account": "{handle}：{count} 条记录",
+    "view": "查看只读账户数据",
+    "details": "已验证的旧账户数据（只读）",
+    "none": "未找到完整可读的保留代次。仍然禁止保存。",
+    "inaccessible": "无法打开 IndexedDB。原始字节不可访问，因此无法下载救援文件。",
+    "rescue": "下载原始字节救援 ZIP",
+    "rescue_warning": "救援文件可能包含损坏的字节和多个账户，不能作为普通导入文件，也不代表已验证的备份。",
+    "confirm": "我了解较新的记录可能缺失。将此旧数据树恢复为新代次，并保留损坏的证据。",
+    "restore": "恢复已确认的旧数据",
+    "restoring": "正在验证并保存恢复数据…",
+    "failed": "无法完成恢复。原始证据没有被删除。",
+    "rescue_failed": "无法创建救援 ZIP，或数据超出支持的归档限制。没有完成下载。",
+    "retry": "重新加载并重试"
+  },
   "errors": {
     "import_failed": "❌ 导入失败：{error}",
     "import_merged": "✅ 已合并 {count} 条新的跑路记录！",
-    "import_replaced": "✅ 已替换为 {count} 条跑路记录！"
+    "import_replaced": "✅ 已替换为 {count} 条跑路记录！",
+    "archive_invalid": "请选择受支持且完整的 format-1 ZIP 归档。不支持 JSON 或旧版导出文件。",
+    "export_failed": "无法完成 ZIP 导出，或数据超出支持的归档限制。没有完成下载。",
+    "storage_failed": "无法完成本地数据操作。请重试。",
+    "unknown": "未知错误"
   },
   "easter_eggs": {
     "boom_quote": "BOOM! 💥 开玩笑的...或者我是认真的？"

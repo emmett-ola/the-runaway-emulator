@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { unzipSync } from 'fflate';
 import { encodeCanonical, decodeCanonical, sha256 } from '../../../shared/codec';
-import type { FileDescriptor, Manifest, RecoverySnapshot, VirtualFile } from '../storage';
+import type { FileDescriptor, Manifest, RecoverySnapshot, RunIndex, VirtualFile } from '../storage';
 import { createExportArchive, createRecoveryArchive, type ArchiveSource } from './archive';
 import { EXPORT_LIMITS, decodeExportJson, preflightExport, validateExportPath, validateManifest } from './validation';
 
@@ -17,6 +17,8 @@ const makeDescriptor = async (path: string, bytes: Uint8Array): Promise<FileDesc
   path, module: moduleFor(path), schemaVersion: 1, fileVersion: '3', bytes: bytes.byteLength, sha256: await sha256(bytes),
 });
 const envelope = (accountId: string, payload: unknown) => ({ accountId, payload, schemaVersion: 1, recordVersion: '3', createdAt: 0, updatedAt: 1 });
+const emptyRunIndex = (accountId: string): RunIndex => ({ accountId, schemaVersion: 1, projectionVersion: 1, sourceRevision: '3',
+  nextOrdinal: 0, total: 0, firstAt: null, minAt: null, maxAt: null, chunks: [], hitIds: [], timestamps: [], recent: [] });
 const fixture = async (change?: (files: Map<string, Uint8Array>) => void) => {
   const files = new Map<string, Uint8Array>();
   const put = (path: string, value: unknown) => files.set(path, encodeCanonical(value));
@@ -26,13 +28,24 @@ const fixture = async (change?: (files: Map<string, Uint8Array>) => void) => {
   ], ignoredUnknown: 'peer installation directory extras' });
   put('shared/extensions.json', { schemaVersion: 1, payload: [null, 1, { opaque: true }] });
   put('shared/export-metadata.json', { schemaVersion: 1, payload: { note: 'interchange' } });
-  put('device/preferences.json', { schemaVersion: 1, payload: { timezone: 'UTC', language: 'en_us', mode: 'local' } });
+  put('device/preferences.json', { timezone: 'UTC', appearance: 'light', language: 'en_us', calendarTheme: 'github-green', mode: 'local' });
   for (const id of [ACCOUNT, PEER]) {
     const root = `accounts/${id}/`;
-    put(root + 'account.json', envelope(id, { handle: id === ACCOUNT ? 'selected/../handle' : 'peer', registeredAt: id === ACCOUNT ? 0 : 1 }));
-    for (const name of ['profile.json', 'settings.json', 'extensions.json', 'plugins/games.json', 'run/index.json', 'imports/index.json']) put(root + name, envelope(id, {}));
-    put(root + 'run/y2026-m11-000001.json', { ...envelope(id, {}), partition: 'y2026-m11', sequence: 1,
-      entries: [{ ordinal: 0, hit: { id: 'stable', at: 42, extra: ['保留', null, { x: -0 }] } }, { ordinal: 1, hit: { id: 'latest', at: 100 } }] });
+    put(root + 'account.json', envelope(id, { handle: id === ACCOUNT ? 'selected/../handle' : 'peer', registeredAt: id === ACCOUNT ? 0 : 1, extensions: {} }));
+    put(root + 'profile.json', envelope(id, { fields: {}, emailVerification: 'unverified' }));
+    for (const name of ['settings.json', 'extensions.json']) put(root + name, envelope(id, {}));
+    put(root + 'plugins/games.json', { ...envelope(id, { settings: {}, cardCollections: {} }), pluginId: 'games' });
+    put(root + 'imports/index.json', envelope(id, []));
+    const path = root + 'run/y1970-m01-000001.json';
+    put(path, { accountId: id, schemaVersion: 1, recordVersion: '3', createdAt: 0, updatedAt: 1, partition: 'y1970-m01', sequence: 1,
+      entries: [{ ordinal: 0, hit: { id: 'stable', at: 42, schemaVersion: 1, recordVersion: '3', extra: ['保留', null, { x: -0 }] } },
+        { ordinal: 1, hit: { id: 'latest', at: 100, schemaVersion: 1, recordVersion: '3' } }] });
+    const index: RunIndex = { ...emptyRunIndex(id), nextOrdinal: 2, total: 2, firstAt: 42, minAt: 42, maxAt: 100,
+      chunks: [{ ...await makeDescriptor(path, files.get(path)!), partition: 'y1970-m01', sequence: 1, count: 2,
+        minAt: 42, maxAt: 100, firstOrdinal: 0, lastOrdinal: 1 }], hitIds: ['stable', 'latest'],
+      timestamps: [{ at: 42, count: 1, firstOrdinal: 0 }, { at: 100, count: 1, firstOrdinal: 1 }],
+      recent: [{ path, ordinal: 1, at: 100 }, { path, ordinal: 0, at: 42 }] };
+    put(root + 'run/index.json', index);
   }
   change?.(files);
   const descriptors: FileDescriptor[] = [];
@@ -59,7 +72,7 @@ const fakeDescriptor = (path = ROOT + 'extensions.json', bytes = 1): FileDescrip
 });
 const recovery = (files: VirtualFile[]): RecoverySnapshot => ({
   diagnostics: [{ code: 'integrity', message: 'Newest committed bytes failed verification.' }],
-  current: { generation: 'damaged', revision: '9', manifestDigest: '0'.repeat(64) }, readableGeneration: 'older', readOnly: true, files,
+  current: { generation: 'damaged', revision: '9', manifestDigest: '0'.repeat(64) }, readableGeneration: 'older', readableTree: null, readOnly: true, files,
 });
 
 describe('format-1 committed account export', () => {
@@ -71,7 +84,7 @@ describe('format-1 committed account export', () => {
     expect(paths[0]).toBe('manifest.json');
     expect(paths.slice(1)).toEqual(paths.slice(1).sort());
     expect(paths.every(path => !path.endsWith('/') && !path.includes(PEER))).toBe(true);
-    expect(paths).toContain(ROOT + 'run/y2026-m11-000001.json');
+    expect(paths).toContain(ROOT + 'run/y1970-m01-000001.json');
     expect(requested.flat().some(path => path.includes(PEER))).toBe(false);
     const manifest = manifestOf(zip);
     expect(manifest).toMatchObject({ kind: 'user', accountId: ACCOUNT, deviceId: 'device-provenance', revision: '3', exportedAt: 123456,
@@ -86,8 +99,8 @@ describe('format-1 committed account export', () => {
     }
     expect(decodeCanonical(zip['shared/accounts.json'])).toEqual({ schemaVersion: 1, recordVersion: '3',
       accounts: [{ accountId: ACCOUNT, handle: 'selected/../handle', registeredAt: 0 }] });
-    const chunk = decodeCanonical(zip[ROOT + 'run/y2026-m11-000001.json']);
-    expect(chunk).toEqual(decodeCanonical(files.get(ROOT + 'run/y2026-m11-000001.json')!));
+    const chunk = decodeCanonical(zip[ROOT + 'run/y1970-m01-000001.json']);
+    expect(chunk).toEqual(decodeCanonical(files.get(ROOT + 'run/y1970-m01-000001.json')!));
   });
 
   it('has deterministic ZIP bytes, fixed DOS timestamp and regular-file permissions without ZIP64', async () => {
@@ -158,11 +171,15 @@ describe('format-1 committed account export', () => {
 
   it('supports an empty account with zero chunks and excludes unregistered credential paths', async () => {
     const empty = await fixture(files => {
-      files.delete(ROOT + 'run/y2026-m11-000001.json');
+      files.delete(ROOT + 'run/y1970-m01-000001.json');
+      files.set(ROOT + 'run/index.json', encodeCanonical(emptyRunIndex(ACCOUNT)));
       files.set('credentials/session.json', encodeCanonical({ token: 'must-not-export' }));
     });
     await expect(createExportArchive(empty.source, 'selected/../handle')).rejects.toMatchObject({ code: 'path' });
-    const valid = await fixture(files => files.delete(ROOT + 'run/y2026-m11-000001.json'));
+    const valid = await fixture(files => {
+      files.delete(ROOT + 'run/y1970-m01-000001.json');
+      files.set(ROOT + 'run/index.json', encodeCanonical(emptyRunIndex(ACCOUNT)));
+    });
     const zip = unzipSync(await createExportArchive(valid.source, 'selected/../handle'));
     expect(Object.keys(zip).filter(path => path.startsWith(ROOT + 'run/'))).toEqual([ROOT + 'run/index.json']);
   });
