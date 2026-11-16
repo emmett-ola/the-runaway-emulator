@@ -29,3 +29,6 @@ dist-ssr
 
 # Copilot
 session.md
+
+# colleague working reports stay out of version control
+REPORT*.md
