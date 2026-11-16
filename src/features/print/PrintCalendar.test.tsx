@@ -17,9 +17,9 @@ vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));
 
 const month = new Date(2026, 10, 1);
 const hits: HitLog[] = [
-  { id: 'boundary', at: Date.UTC(2026, 11, 1, 1) },
-  { id: 'same-day', at: Date.UTC(2026, 11, 1, 2) },
-  { id: 'december', at: Date.UTC(2026, 11, 15, 12) },
+  { id: 'boundary', at: Date.UTC(2026, 11, 1, 1), schemaVersion: 1, recordVersion: '1' },
+  { id: 'same-day', at: Date.UTC(2026, 11, 1, 2), schemaVersion: 1, recordVersion: '1' },
+  { id: 'december', at: Date.UTC(2026, 11, 15, 12), schemaVersion: 1, recordVersion: '1' },
 ];
 const values = (root: ParentNode, selector: string) =>
   Array.from(root.querySelectorAll(selector), node => node.textContent);
