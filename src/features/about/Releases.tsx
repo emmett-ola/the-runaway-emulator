@@ -6,6 +6,7 @@ import { logout as clearIdentity } from '../../auth';
 import { formatLongDate } from '../../lib/time';
 
 const entries = [
+  { version: '2.0.0', date: '2026-11-16', prefix: 'v200', items: 7 },
   { version: '1.1.0', date: '2025-12-08', prefix: 'v110', items: 6 },
   { version: '1.0.0', date: '2025-12-02', prefix: 'v100', items: 9 },
 ];

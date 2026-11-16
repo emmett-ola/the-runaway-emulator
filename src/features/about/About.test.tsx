@@ -5,11 +5,14 @@ import { About, Releases } from './index';
 import { i18n } from '../../lib/i18n';
 import { version } from '../../lib/version';
 import { readFileSync } from 'node:fs';
+const releaseVersions = Array.from(
+  readFileSync('src/features/about/Releases.tsx', 'utf8').matchAll(/\{ version: '([^']+)'/g),
+  ([, releaseVersion]) => `v${releaseVersion}`,
+);
 afterEach(cleanup);
 it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('links About to localized dated release history without a false latest badge in %s', async locale => {
   await i18n.setLanguage(locale);
   const about = render(<MemoryRouter><About /></MemoryRouter>);
-  expect(version).toBe('1.2.0');
   expect(version).toBe(JSON.parse(readFileSync('package.json', 'utf8')).version);
   expect(about.container).toHaveTextContent(i18n.t('releases.version', { version }));
   expect(i18n.t('settings.version', { version })).toContain(version);
@@ -18,7 +21,10 @@ it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('links About to localized dated re
   about.unmount();
   const { container } = render(<MemoryRouter initialEntries={['/releases']}><Releases /></MemoryRouter>);
   expect(screen.getByRole('heading', { name: i18n.t('releases.title') })).toBeInTheDocument();
-  expect(container.querySelectorAll('time')).toHaveLength(2);
+  const renderedVersions = Array.from(container.querySelectorAll('article > span'), entry => entry.textContent);
+  expect(container.querySelectorAll('time')).toHaveLength(releaseVersions.length);
+  expect(renderedVersions).toEqual(releaseVersions);
+  expect(renderedVersions).toContain(`v${version}`);
   expect(container).toHaveTextContent('v1.1.0');
   expect(container).toHaveTextContent('v1.0.0');
   expect(container).not.toHaveTextContent(/Latest|最新/);
