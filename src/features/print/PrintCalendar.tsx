@@ -5,14 +5,16 @@ import { i18n, useT } from '../../lib/i18n';
 import './PrintCalendar.css';
 
 export interface PrintCalendarProps {
-  hits: HitLog[];
+  hits?: readonly HitLog[];
+  dayCounts?: Readonly<Record<string, number>>;
+  total?: number;
   username: string;
   currentMonth: Date;
   onClose: () => void;
   timezone?: string;
 }
 
-export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone: propTimezone }: PrintCalendarProps) => {
+export const PrintCalendar = ({ hits, dayCounts, total = hits?.length ?? 0, username, currentMonth, onClose, timezone: propTimezone }: PrintCalendarProps) => {
   useT();
   const titleId = useId();
   const printRef = useRef<HTMLDivElement>(null);
@@ -80,8 +82,8 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
     }
 
     // Recalculate hit dates based on current timezone
-    const hitsByDate = new Map<string, number>();
-    hits.forEach(hit => {
+    const hitsByDate = new Map<string, number>(Object.entries(dayCounts ?? {}));
+    if (!dayCounts) hits?.forEach(hit => {
       const dateStr = timestampToDateString(hit.at, timezone);
       hitsByDate.set(dateStr, (hitsByDate.get(dateStr) || 0) + 1);
     });
@@ -181,7 +183,7 @@ export const PrintCalendar = ({ hits, username, currentMonth, onClose, timezone:
               <div className="print-stats">
                 <div className="print-stat-item">
                   <span className="print-stat-label">{i18n.t('print.stats_total')}</span>
-                  <span className="print-stat-value">{hits.length}</span>
+                  <span className="print-stat-value">{total}</span>
                 </div>
                 <div className="print-stat-item">
                   <span className="print-stat-label">{i18n.t('print.stats_month')}</span>

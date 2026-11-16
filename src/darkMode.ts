@@ -16,8 +16,8 @@ export const getTheme = (): Theme => {
   return 'light';
 };
 
-export const setTheme = (theme: Theme): void => {
-  setAppearance(theme);
+export const setTheme = async (theme: Theme): Promise<void> => {
+  await setAppearance(theme);
   applyTheme(theme);
 };
 
@@ -29,10 +29,10 @@ export const applyTheme = (theme: Theme): void => {
   }
 };
 
-export const toggleTheme = (): Theme => {
+export const toggleTheme = async (): Promise<Theme> => {
   const current = getTheme();
   const next = current === 'light' ? 'dark' : 'light';
-  setTheme(next);
+  await setTheme(next);
   return next;
 };
 

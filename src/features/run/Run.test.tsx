@@ -5,21 +5,34 @@ import { SceneSession } from '../scene';
 import { Statistics } from './Statistics';
 import { HitCalendar } from './HitCalendar';
 import { HitLogs } from './HitLogs';
-import { writeRecord, readRecord } from '../../lib/storage';
+import { ensureRunView, flushWrites, getAccountSnapshot, readFullRecord, updatePlugin } from '../../lib/storage';
+import { seedRecord } from '../../test/storage-fixtures';
+import { saveTimezone } from '../../lib/time';
 import { i18n } from '../../lib/i18n';
 import { registerRunGame } from '../../lib/games';
 
 vi.mock('animejs', () => ({ animate: vi.fn(), stagger: vi.fn(() => 0) }));
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
-  i18n.setLanguage('en_us');
-  vi.useFakeTimers();
+  await i18n.setLanguage('en_us');
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
   vi.setSystemTime(new Date('2026-11-13T01:00:00Z'));
   vi.spyOn(Math, 'random').mockReturnValue(0.5);
-  writeRecord({ username: 'runner', hits: [], registeredAt: 1, profile: {} });
+  await saveTimezone('UTC');
+  await seedRecord({ username: 'runner', hits: [], registeredAt: 1, profile: {} });
+  await ensureRunView('runner', 'UTC', new Date());
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
-const settle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(900); }); };
+const settle = async () => {
+  await vi.waitFor(async () => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+      await flushWrites();
+      await ensureRunView('runner', 'UTC', new Date());
+    });
+    expect(run().every(button => !button.hasAttribute('disabled'))).toBe(true);
+  });
+};
 const run = () => screen.getAllByRole('button', { name: /RUN/ });
 
 describe('run-owned invariants', () => {
@@ -31,7 +44,7 @@ describe('run-owned invariants', () => {
     await act(async () => {});
     act(() => { run()[0].click(); run()[0].click(); });
     await settle();
-    expect(readRecord('runner')?.hits).toHaveLength(1);
+    expect((await readFullRecord('runner')).hits).toHaveLength(1);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: i18n.t('run_scene.skip') }));
     expect(run()[0]).toHaveFocus();
@@ -40,37 +53,38 @@ describe('run-owned invariants', () => {
     await act(async () => {});
     fireEvent.click(run()[0]);
     await settle();
-    expect(readRecord('runner')?.hits).toHaveLength(2);
+    expect((await readFullRecord('runner')).hits).toHaveLength(2);
     expect(screen.queryByRole('dialog')).toBeNull();
     view.unmount();
     render(<Page home />);
     await act(async () => {});
     fireEvent.click(run()[0]);
     await settle();
-    expect(readRecord('runner')?.hits).toHaveLength(3);
+    expect((await readFullRecord('runner')).hits).toHaveLength(3);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('wrong fork and boom neither count nor consume the scene; all fork controls are reachable and the successful trigger regains focus', async () => {
-    writeRecord({ username: 'runner', hits: [], registeredAt: 1, profile: {}, settings: { games: { forkInTheRoadEnabled: true } } });
+    await updatePlugin(getAccountSnapshot('runner')!.accountId, { settings: { forkInTheRoadEnabled: true } });
+    await ensureRunView('runner', 'UTC', new Date());
     render(<SceneSession><Dashboard username="runner" onLogout={() => {}} showHeader={false} /></SceneSession>);
     await act(async () => {});
     expect(run()).toHaveLength(3);
     expect(run().every(button => button.tabIndex === 0)).toBe(true);
     fireEvent.click(run()[0]);
     await settle();
-    expect(readRecord('runner')?.hits).toHaveLength(0);
+    expect((await readFullRecord('runner')).hits).toHaveLength(0);
     expect(screen.queryByRole('dialog')).toBeNull();
     vi.mocked(Math.random).mockReturnValue(0);
     fireEvent.click(run()[1]);
     await settle();
-    expect(readRecord('runner')?.hits).toHaveLength(0);
+    expect((await readFullRecord('runner')).hits).toHaveLength(0);
     expect(screen.queryByRole('dialog')).toBeNull();
     vi.mocked(Math.random).mockReturnValue(0.5);
     const trigger = run()[0];
     fireEvent.click(trigger);
     await settle();
-    expect(readRecord('runner')?.hits).toHaveLength(1);
+    expect((await readFullRecord('runner')).hits).toHaveLength(1);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(trigger).toHaveFocus();
   });
@@ -85,22 +99,23 @@ describe('run-owned invariants', () => {
       }),
     });
     try {
-      writeRecord({ username: 'runner', hits: [], registeredAt: 1, settings: { games: { extensionProbe: true } } });
+      await updatePlugin(getAccountSnapshot('runner')!.accountId, { settings: { extensionProbe: true } });
+      await ensureRunView('runner', 'UTC', new Date());
       const { container } = render(<SceneSession><Dashboard username="runner" onLogout={() => {}} showHeader={false} /></SceneSession>);
       await act(async () => {});
       expect(run()).toHaveLength(2);
       fireEvent.click(run()[0]);
       await settle();
-      expect(readRecord('runner')?.hits).toHaveLength(0);
+      expect((await readFullRecord('runner')).hits).toHaveLength(0);
       expect(container.querySelector('.sweat-drop')).toBeInTheDocument();
       fireEvent.click(run()[1]);
       await settle();
-      expect(readRecord('runner')?.hits).toHaveLength(1);
+      expect((await readFullRecord('runner')).hits).toHaveLength(1);
       expect(screen.queryByRole('dialog')).toBeNull();
       vi.mocked(Math.random).mockReturnValue(0);
       fireEvent.click(run()[1]);
       await settle();
-      expect(readRecord('runner')?.hits).toHaveLength(1);
+      expect((await readFullRecord('runner')).hits).toHaveLength(1);
       expect(screen.queryByRole('dialog')).toBeNull();
     } finally { dispose(); }
   });

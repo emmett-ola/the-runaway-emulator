@@ -15,8 +15,8 @@ vi.mock('../features/games', () => ({
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
-it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('recovers from a whole-surface failure through outer route navigation in %s', locale => {
-  i18n.setLanguage(locale);
+it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('recovers from a whole-surface failure through outer route navigation in %s', async locale => {
+  await i18n.setLanguage(locale);
   vi.spyOn(console, 'error').mockImplementation(() => {});
   render(<MemoryRouter><AppRoutes username="test" handleLogout={() => {}} /></MemoryRouter>);
 

@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Settings } from '../features/settings';
 import { i18n } from '../lib/i18n';
 import { getTheme } from '../darkMode';
 import { getSavedTimezone } from '../lib/time';
 import { getStorageMode } from '../storage';
+import { createAccount, flushWrites, initializeStorage, readPreferences, resetStorage } from '../lib/storage';
 
-beforeEach(() => { localStorage.clear(); i18n.setLanguage('en_us'); });
+beforeEach(async () => { localStorage.clear(); await i18n.setLanguage('en_us'); await createAccount('preferences'); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
-it('settings changes persist across remount; cloud is inert and local writes never fetch', () => {
+it('settings changes persist across remount; cloud is inert and local writes never fetch', async () => {
   const fetch = vi.spyOn(globalThis, 'fetch');
   localStorage.setItem('runawaylog-storage-mode', 'cloud');
   const view = render(<MemoryRouter><Settings /></MemoryRouter>);
@@ -19,21 +20,28 @@ it('settings changes persist across remount; cloud is inert and local writes nev
   expect(getStorageMode()).toBe('local');
   fireEvent.click(cloud);
   fireEvent.click(view.getByRole('checkbox', { name: i18n.t('settings.dark_mode') }));
-  expect(getTheme()).toBe('dark');
+  await waitFor(() => expect(getTheme()).toBe('dark'));
   fireEvent.click(view.container.querySelectorAll('.theme-option')[1]);
-  const selected = localStorage.getItem('calendar-theme');
+  await waitFor(async () => expect((await readPreferences()).calendarTheme).toBe('ocean-blue'));
+  await act(async () => { await flushWrites(); });
+  const selected = (await readPreferences()).calendarTheme;
   fireEvent.change(view.getByRole('combobox', { name: i18n.t('settings.timezone') }), { target: { value: 'America/Los_Angeles' } });
-  expect(getSavedTimezone()).toBe('America/Los_Angeles');
+  await waitFor(() => expect(getSavedTimezone()).toBe('America/Los_Angeles'));
   fireEvent.change(view.getByRole('combobox', { name: i18n.t('settings.language') }), { target: { value: 'zh_tw' } });
+  await waitFor(() => expect(i18n.getLanguage()).toBe('zh_tw'));
+  await act(async () => { await flushWrites(); });
   expect(view.getByRole('heading', { name: i18n.t('settings.title') })).toBeInTheDocument();
-  expect(i18n.getLanguage()).toBe('zh_tw');
-  expect(localStorage.getItem('app-language')).toBe('zh_tw');
+  expect((await readPreferences()).language).toBe('zh_tw');
+  expect(localStorage.getItem('app-language')).toBeNull();
+  expect(localStorage.getItem('runawaylog-storage-mode')).toBe('cloud');
   view.unmount();
+  await resetStorage();
+  await initializeStorage();
   const again = render(<MemoryRouter><Settings /></MemoryRouter>);
   expect(again.getByRole('checkbox', { name: i18n.t('settings.dark_mode') })).toBeChecked();
   expect(again.getByRole('combobox', { name: i18n.t('settings.timezone') })).toHaveValue('America/Los_Angeles');
   expect(again.getByRole('combobox', { name: i18n.t('settings.language') })).toHaveValue('zh_tw');
-  expect(localStorage.getItem('calendar-theme')).toBe(selected);
+  expect((await readPreferences()).calendarTheme).toBe(selected);
   expect(fetch).not.toHaveBeenCalled();
-  act(() => i18n.setLanguage('en_us'));
+  await act(async () => { await i18n.setLanguage('en_us'); });
 });

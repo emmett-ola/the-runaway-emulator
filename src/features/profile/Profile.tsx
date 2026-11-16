@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
-import { loadUserData, saveUserData } from '../../storage';
+import { useAccountSnapshot, updateProfile } from '../../storage';
+import { readIdentityCache } from '../../lib/storage/preferences';
+import { logout } from '../../auth';
 import { getGravatarUrl } from './gravatar';
 import { formatMemberSince } from './memberSince';
-import type { UserData } from '../../types';
 import { i18n, useT } from '../../lib/i18n';
 import { formatLongDate } from '../../lib/time';
 import './Profile.css';
@@ -12,48 +13,34 @@ import './Profile.css';
 export const Profile = () => {
   useT();
   const navigate = useNavigate();
-  const username = sessionStorage.getItem('runawaylog-username') || '';
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const username = readIdentityCache('username') || '';
+  const userData = useAccountSnapshot(username);
   const [email, setEmail] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
   const handleLogout = () => {
-    sessionStorage.removeItem('runawaylog-username');
+    logout();
     navigate('/');
     window.location.reload();
   };
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      let data = await loadUserData(username);
-      if (!data) {
-        // Create default user data for new users
-        data = {
-          username,
-          registeredAt: Date.now(),
-          hits: [],
-        };
-        await saveUserData(data);
-      }
-      setUserData(data);
-      setEmail(data.profile?.email || '');
-    };
-    
-    fetchUserData();
-  }, [username]);
+    if (!isEditing) setEmail(userData?.profile?.email || '');
+  }, [userData, isEditing]);
 
   const handleSaveEmail = async () => {
-    if (userData) {
-      const updatedData: UserData = {
-        ...userData,
-        profile: {
-          ...userData.profile,
-          email: email.trim() || undefined,
-        },
-      };
-      await saveUserData(updatedData);
-      setUserData(updatedData);
+    if (!userData || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await updateProfile(userData.accountId, { email: email.trim() || undefined });
       setIsEditing(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -75,6 +62,7 @@ export const Profile = () => {
       <div className="profile-page">
         <div className="profile-container">
           <h1 className="profile-title">👤 {i18n.t('profile.title')}</h1>
+          {error && <p role="alert">{error}</p>}
 
           <div className="profile-card">
             <div className="profile-header">
@@ -91,7 +79,7 @@ export const Profile = () => {
                 <div className="profile-stats">
                   <div className="profile-stat">
                     <span className="stat-icon">🏃</span>
-                    <span className="stat-value">{userData.hits.length}</span>
+                    <span className="stat-value">{userData.total}</span>
                     <span className="stat-label">{i18n.t('profile.escape_dreams')}</span>
                   </div>
                   <div className="profile-stat">
@@ -119,7 +107,7 @@ export const Profile = () => {
                       className="field-input"
                     />
                     <div className="field-actions">
-                      <button onClick={handleSaveEmail} className="btn-save">
+                      <button onClick={handleSaveEmail} disabled={saving} className="btn-save">
                         {i18n.t('profile.save')}
                       </button>
                       <button 

@@ -6,8 +6,8 @@ import { i18n } from '../../lib/i18n';
 import { version } from '../../lib/version';
 import { readFileSync } from 'node:fs';
 afterEach(cleanup);
-it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('links About to localized dated release history without a false latest badge in %s', locale => {
-  i18n.setLanguage(locale);
+it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('links About to localized dated release history without a false latest badge in %s', async locale => {
+  await i18n.setLanguage(locale);
   const about = render(<MemoryRouter><About /></MemoryRouter>);
   expect(version).toBe('1.2.0');
   expect(version).toBe(JSON.parse(readFileSync('package.json', 'utf8')).version);

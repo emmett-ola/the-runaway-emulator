@@ -1,100 +1,81 @@
-import type { UserData, HitLog } from './types';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { AccountSnapshot, Hit, RunView } from './lib/storage';
+import { appendHit, deleteRecord, ensureRunView, flushWrites, getAccountSnapshot, getRunView, getStorageState, readRecord, subscribe } from './lib/storage';
 import { getCurrentTimestamp } from './lib/time';
-import { getStorageMode, setStorageMode, type StorageMode } from './lib/storage/preferences';
 export { getStorageMode, setStorageMode } from './lib/storage/preferences';
 export type { StorageMode } from './lib/storage/preferences';
-import { readRecord, writeRecord, deleteRecord } from './lib/storage';
+export { updateProfile, updateSettings, updatePlugin } from './lib/storage';
 
-// Storage interface
+/** Compatibility facade: all persistence points inward to the repository. */
 export interface StorageAdapter {
-  loadUserData(username: string): Promise<UserData | null>;
-  saveUserData(userData: UserData): Promise<void>;
-  addHit(username: string): Promise<HitLog | null>;
-  syncData(username: string): Promise<void>;
-  deleteUserData(username: string): Promise<void>;
+  loadUserData(idOrHandle: string): Promise<AccountSnapshot | null>;
+  addHit(idOrHandle: string): Promise<Hit>;
+  syncData(idOrHandle?: string): Promise<void>;
+  deleteUserData(idOrHandle: string): Promise<void>;
 }
 
-/**
- * LocalStorage adapter implementation
- */
 export class LocalStorageAdapter implements StorageAdapter {
-  async loadUserData(username: string): Promise<UserData | null> {
-    try {
-      return readRecord(username);
-    } catch (error) {
-      console.error('Error loading user data from local storage:', error);
-      return null;
-    }
+  loadUserData(idOrHandle: string): Promise<AccountSnapshot | null> {
+    return readRecord(idOrHandle);
   }
 
-  async saveUserData(userData: UserData): Promise<void> {
-    try {
-      writeRecord(userData);
-    } catch (error) {
-      console.error('Error saving user data to local storage:', error);
-    }
+  async addHit(idOrHandle: string): Promise<Hit> {
+    // Allocate once before the repository queues/rebases this intent.
+    const hit: Hit = { id: crypto.randomUUID(), at: getCurrentTimestamp(), schemaVersion: 1, recordVersion: '1' };
+    const account = await readRecord(idOrHandle);
+    if (!account) throw new Error('Account not found');
+    await appendHit(account.accountId, hit);
+    return hit;
   }
 
-  async addHit(username: string): Promise<HitLog | null> {
-    try {
-      // Read directly so a blocked migration cannot be mistaken for a missing user.
-      const userData = readRecord(username) || { username, registeredAt: Date.now(), hits: [] };
-      const at = getCurrentTimestamp();
-      const newHit: HitLog = { id: crypto.randomUUID(), at };
-      writeRecord({ ...userData, hits: [...userData.hits, newHit] });
-      
-      return newHit;
-    } catch (error) {
-      console.error('Error adding hit to local storage:', error);
-      return null;
-    }
+  syncData(): Promise<void> {
+    return flushWrites();
   }
 
-  async syncData(): Promise<void> {
-    // No-op for local storage
-    return;
-  }
-
-  async deleteUserData(username: string): Promise<void> {
-    try {
-      deleteRecord(username);
-    } catch (error) {
-      console.error('Error deleting user data from local storage:', error);
-    }
+  async deleteUserData(idOrHandle: string): Promise<void> {
+    const account = await readRecord(idOrHandle);
+    if (!account) throw new Error('Account not found');
+    await deleteRecord(account.accountId);
   }
 }
 
 export class CloudStorageAdapter extends LocalStorageAdapter {}
-
-/** Cloud remains unavailable even when an old caller requests it explicitly. */
-export const createStorageAdapter = (mode?: StorageMode): StorageAdapter => {
-  if (mode) setStorageMode(mode);
-  else getStorageMode();
+export const createStorageAdapter = (mode?: import('./lib/storage/preferences').StorageMode): StorageAdapter => {
+  void mode; // Cloud is unavailable; compatibility callers still receive local storage.
   return new LocalStorageAdapter();
 };
-
-// Export default storage adapter instance
 const storage = createStorageAdapter();
-
 export default storage;
+export const loadUserData = (idOrHandle: string): Promise<AccountSnapshot | null> => storage.loadUserData(idOrHandle);
+export const addHit = (idOrHandle: string): Promise<Hit> => storage.addHit(idOrHandle);
+export const syncData = (): Promise<void> => storage.syncData();
+export const deleteUserData = (idOrHandle: string): Promise<void> => storage.deleteUserData(idOrHandle);
 
-// Keep backward compatibility with existing code
-export const loadUserData = (username: string): Promise<UserData | null> => {
-  return storage.loadUserData(username);
-};
+export function useStorageState() {
+  return useSyncExternalStore(subscribe, getStorageState, getStorageState);
+}
 
-export const saveUserData = (userData: UserData): Promise<void> => {
-  return storage.saveUserData(userData);
-};
+export function useAccountSnapshot(idOrHandle: string): AccountSnapshot | null {
+  const getSnapshot = () => getAccountSnapshot(idOrHandle);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
-export const addHit = (username: string): Promise<HitLog | null> => {
-  return storage.addHit(username);
-};
-
-export const syncData = (username: string): Promise<void> => {
-  return storage.syncData(username);
-};
-
-export const deleteUserData = (username: string): Promise<void> => {
-  return storage.deleteUserData(username);
-};
+/** Observation is synchronous; selective hydration only runs in an effect. */
+export function useRunView(accountId: string | undefined, timezone: string, month: Date) {
+  const state = useStorageState();
+  const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+  const [error, setError] = useState<string>('');
+  const getSnapshot = (): RunView | null => accountId ? getRunView(accountId, timezone, monthKey) : null;
+  const view = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  useEffect(() => {
+    if (!accountId || state.status !== 'ready') return;
+    let active = true;
+    ensureRunView(accountId, timezone, monthKey).then(() => {
+      if (active) setError('');
+    }).catch((reason: unknown) => {
+      if (active) setError(reason instanceof Error ? reason.message : String(reason));
+    });
+    return () => { active = false; };
+  }, [accountId, timezone, monthKey, state.revision, state.status]);
+  return { view, error, loading: !view };
+}

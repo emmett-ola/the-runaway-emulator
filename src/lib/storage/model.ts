@@ -1,3 +1,5 @@
+export type { AccountSnapshot, StoreSnapshot, RunView, CommitReceipt, DevicePreferences } from './state-model';
+
 export type Hit = {
   id: string;
   at: number;

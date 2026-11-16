@@ -2,17 +2,19 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { Profile } from './index';
-import { readRecord, writeRecord } from '../../lib/storage';
+import { readRecord } from '../../lib/storage';
+import { writeIdentityCache } from '../../lib/storage/preferences';
+import { seedRecord } from '../../test/storage-fixtures';
 import { i18n } from '../../lib/i18n';
-beforeEach(() => {
-  localStorage.clear(); sessionStorage.setItem('runawaylog-username', 'member');
-  i18n.setLanguage('en_us');
-  writeRecord({ username: 'member', hits: [], registeredAt: Date.now() - 86400000 * 2 });
+beforeEach(async () => {
+  localStorage.clear(); sessionStorage.clear(); writeIdentityCache('username', 'member');
+  await i18n.setLanguage('en_us');
+  await seedRecord({ username: 'member', hits: [], registeredAt: Date.now() - 86400000 * 2 });
 });
 afterEach(cleanup);
 it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('localizes member duration and persists email and the original registration date in %s', async locale => {
-  i18n.setLanguage(locale);
-  const registered = readRecord('member')!.registeredAt;
+  await i18n.setLanguage(locale);
+  const registered = (await readRecord('member'))!.registeredAt;
   const view = render(<MemoryRouter><Profile /></MemoryRouter>);
   await screen.findByRole('button', { name: i18n.t('profile.edit') });
   const duration = view.container.querySelectorAll('.profile-stat .stat-value')[1];
@@ -21,11 +23,11 @@ it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('localizes member duration and per
   fireEvent.click(screen.getByRole('button', { name: i18n.t('profile.edit') }));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'member@example.test' } });
   fireEvent.click(screen.getByRole('button', { name: i18n.t('profile.save') }));
-  await waitFor(() => expect(readRecord('member')!.profile!.email).toBe('member@example.test'));
+  await waitFor(async () => expect((await readRecord('member'))!.profile!.email).toBe('member@example.test'));
   view.unmount();
   render(<MemoryRouter><Profile /></MemoryRouter>);
   await screen.findByText('member@example.test');
-  expect(readRecord('member')!.registeredAt).toBe(registered);
-  act(() => i18n.setLanguage('zh_tw'));
+  expect((await readRecord('member'))!.registeredAt).toBe(registered);
+  await act(async () => { await i18n.setLanguage('zh_tw'); });
   expect(screen.getByRole('button', { name: i18n.t('profile.edit') })).toBeInTheDocument();
 });

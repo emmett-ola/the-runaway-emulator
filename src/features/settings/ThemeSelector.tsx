@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { colorThemes, getThemeById, applyTheme, type ColorTheme } from '../../themes';
-import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
+import { getCalendarTheme, setCalendarTheme, subscribePreferences } from '../../lib/storage/preferences';
 import { useT } from '../../lib/i18n';
 import './ThemeSelector.css';
 
@@ -11,6 +11,8 @@ interface ThemeSelectorProps {
 export const ThemeSelector = ({ onThemeChange }: ThemeSelectorProps) => {
   const t = useT();
   const [selectedTheme, setSelectedTheme] = useState<string>(getCalendarTheme);
+  const [error, setError] = useState('');
+  useEffect(() => subscribePreferences(() => setSelectedTheme(getCalendarTheme())), []);
 
   useEffect(() => {
     const theme = getThemeById(selectedTheme);
@@ -20,13 +22,17 @@ export const ThemeSelector = ({ onThemeChange }: ThemeSelectorProps) => {
     }
   }, [selectedTheme, onThemeChange]);
 
-  const handleThemeChange = (themeId: string) => {
-    setSelectedTheme(themeId);
-    setCalendarTheme(themeId);
+  const handleThemeChange = async (themeId: string) => {
+    try {
+      await setCalendarTheme(themeId);
+      setSelectedTheme(themeId);
+      setError('');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
 
   return (
     <div className="theme-selector">
+      {error && <p role="alert">{error}</p>}
       <label htmlFor="theme-select" className="theme-label">
         🎨 {t('settings_menu.calendar_theme')}:
       </label>

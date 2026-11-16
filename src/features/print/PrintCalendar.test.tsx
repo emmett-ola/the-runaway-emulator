@@ -7,7 +7,9 @@ import { PrintCalendar } from './index';
 import { HitCalendar } from '../run';
 import { Settings } from '../settings';
 import { i18n, type SupportedLanguage } from '../../lib/i18n';
-import { writeRecord } from '../../lib/storage';
+import { seedRecord } from '../../test/storage-fixtures';
+import { writeIdentityCache } from '../../lib/storage/preferences';
+import { saveTimezone } from '../../lib/time';
 import type { HitLog } from '../../types';
 import { copy, localeTags } from '../../test/i18n-copy';
 
@@ -26,25 +28,25 @@ const dayCount = (root: ParentNode, day: number) =>
     cell.querySelector('.print-day-number')?.textContent === String(day),
   )?.querySelector('.print-day-count')?.textContent ?? '0';
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
-  sessionStorage.setItem('runawaylog-username', 'print-user');
-  localStorage.setItem('runawaylog-timezone', 'America/Los_Angeles');
-  i18n.setLanguage('en_us');
+  writeIdentityCache('username', 'print-user');
+  await saveTimezone('America/Los_Angeles');
+  await i18n.setLanguage('en_us');
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 12, 12));
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
-  i18n.setLanguage('en_us');
+  await i18n.setLanguage('en_us');
 });
 
 describe('print feature regression contract', () => {
   it('Settings opens the current month from the persisted record without invoking window.print', async () => {
-    writeRecord({ username: 'print-user', hits, registeredAt: 1, profile: {} });
+    await seedRecord({ username: 'print-user', hits, registeredAt: 1, profile: {} });
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const { getByRole, queryByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
     expect(queryByRole('dialog')).toBeNull();
@@ -106,8 +108,8 @@ describe('print feature regression contract', () => {
     expect(JSON.stringify(hits)).toBe(before);
   });
 
-  it.each<SupportedLanguage>(['en_us', 'zh_cn', 'zh_tw'])('retains localized dialog controls, dates and calendar-only sheet in %s', locale => {
-    i18n.setLanguage(locale);
+  it.each<SupportedLanguage>(['en_us', 'zh_cn', 'zh_tw'])('retains localized dialog controls, dates and calendar-only sheet in %s', async locale => {
+    await i18n.setLanguage(locale);
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const onClose = vi.fn();
     const { container, getByRole } = render(<PrintCalendar hits={hits} username="print-user" currentMonth={month} onClose={onClose} timezone="UTC" />);

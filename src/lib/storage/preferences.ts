@@ -1,63 +1,52 @@
-// Device-level preferences keep their shipped keys and remain outside user records.
+import type { DevicePreferences, CommitReceipt } from './state-model';
 export type AppearancePreference = 'light' | 'dark';
 export type StorageMode = 'local' | 'cloud';
 
-export const getAppearance = (): string | null => localStorage.getItem('app-theme');
-export const setAppearance = (theme: AppearancePreference): void => localStorage.setItem('app-theme', theme);
-export const getCalendarTheme = (): string => localStorage.getItem('calendar-theme') || 'github-green';
-export const setCalendarTheme = (theme: string): void => localStorage.setItem('calendar-theme', theme);
-export const getLanguagePreference = (): string | null => localStorage.getItem('app-language');
-export const setLanguagePreference = (language: string): void => localStorage.setItem('app-language', language);
-export const getTimezonePreference = (): string | null => localStorage.getItem('runawaylog-timezone');
-export const setTimezonePreference = (timezone: string): void => localStorage.setItem('runawaylog-timezone', timezone);
-
-export const getStorageMode = (): StorageMode => {
-  try {
-    if (localStorage.getItem('runawaylog-storage-mode') !== 'local') {
-      localStorage.setItem('runawaylog-storage-mode', 'local');
-    }
-  } catch (error) {
-    console.error('Error getting storage mode:', error);
-  }
-  return 'local';
+export const defaultPreferences = (): DevicePreferences => ({
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+  appearance: typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  language: typeof navigator === 'undefined' ? 'en-US' : navigator.language,
+  calendarTheme: 'github-green', mode: 'local',
+});
+let preferences: Readonly<DevicePreferences> = Object.freeze(defaultPreferences());
+const listeners = new Set<() => void>();
+let persist: ((patch: Partial<DevicePreferences>) => Promise<CommitReceipt>) | undefined;
+export const subscribePreferences = (listener: () => void): (() => void) => { listeners.add(listener); return () => listeners.delete(listener); };
+export const getPreferencesSnapshot = (): Readonly<DevicePreferences> => preferences;
+export const publishPreferences = (value: DevicePreferences): void => {
+  if (JSON.stringify(value) === JSON.stringify(preferences)) return;
+  preferences = Object.freeze({ ...value });
+  listeners.forEach(listener => listener());
+};
+export const configurePreferences = (writer: (patch: Partial<DevicePreferences>) => Promise<CommitReceipt>): void => { persist = writer; };
+export const validatePreferences = (value: DevicePreferences): void => {
+  if (!value || !['light', 'dark'].includes(value.appearance) || value.mode !== 'local' || typeof value.calendarTheme !== 'string' || typeof value.language !== 'string' || typeof value.timezone !== 'string') throw new Error('Invalid device preferences.');
+  new Intl.DateTimeFormat('en', { timeZone: value.timezone });
+};
+export const changePreferences = async (patch: Partial<DevicePreferences>): Promise<void> => {
+  const next = { ...preferences, ...patch, mode: 'local' as const };
+  validatePreferences(next);
+  if (persist) await persist(patch);
+  else publishPreferences(next); // Volatile until first login; never reported as durable.
+};
+export const getAppearance = (): AppearancePreference => preferences.appearance;
+export const setAppearance = (appearance: AppearancePreference): Promise<void> => changePreferences({ appearance });
+export const getCalendarTheme = (): string => preferences.calendarTheme;
+export const setCalendarTheme = (calendarTheme: string): Promise<void> => changePreferences({ calendarTheme });
+export const getLanguagePreference = (): string => preferences.language;
+export const setLanguagePreference = (language: string): Promise<void> => changePreferences({ language });
+export const getTimezonePreference = (): string => preferences.timezone;
+export const setTimezonePreference = (timezone: string): Promise<void> => changePreferences({ timezone });
+export const getStorageMode = (): StorageMode => 'local';
+export const setStorageMode = async (mode: StorageMode): Promise<void> => {
+  void mode;
+  await changePreferences({ mode: 'local' });
 };
 
-// Cloud is an unavailable placeholder, including for legacy callers.
-export const setStorageMode = (mode: StorageMode): void => {
-  if (mode === 'local' || mode === 'cloud') {
-    try {
-      localStorage.setItem('runawaylog-storage-mode', 'local');
-    } catch (error) {
-      console.error('Error setting storage mode:', error);
-    }
-  }
-};
-
-// Opaque legacy demo-identity bytes: storage owns keys, auth owns semantics.
-const identityKeys = {
-  token: 'runawaylog-token',
-  currentUser: 'runawaylog-current-user',
-  credentials: 'runawaylog-credentials',
-} as const;
-type IdentityCache = keyof typeof identityKeys;
-export const readIdentityCache = (cache: IdentityCache): string | null => localStorage.getItem(identityKeys[cache]);
-const preserveIdentityMirror = (): void => {
-  const raw = localStorage.getItem(identityKeys.currentUser);
-  if (raw === null) return;
-  try {
-    const identity: unknown = JSON.parse(raw);
-    if (identity && typeof identity === 'object' && Object.keys(identity).length === 1 && 'username' in identity && typeof identity.username === 'string') return;
-  } catch { /* Unreadable mirror bytes also belong in the recovery archive. */ }
-  const existing = localStorage.getItem('runawaylog-current-user-backups');
-  const backups: unknown = existing === null ? [] : JSON.parse(existing);
-  if (!Array.isArray(backups) || backups.some(value => typeof value !== 'string')) throw new Error('Invalid identity recovery archive');
-  if (!backups.includes(raw)) localStorage.setItem('runawaylog-current-user-backups', JSON.stringify([...backups, raw]));
-};
-export const writeIdentityCache = (cache: IdentityCache, value: string): void => {
-  if (cache === 'currentUser') preserveIdentityMirror();
-  localStorage.setItem(identityKeys[cache], value);
-};
-export const removeIdentityCache = (cache: IdentityCache): void => {
-  if (cache === 'currentUser') preserveIdentityMirror();
-  localStorage.removeItem(identityKeys[cache]);
-};
+// Demo identity is tab-scoped and separate from virtual/export files and obsolete keys.
+type IdentityCache = 'token' | 'currentUser' | 'credentials' | 'username';
+const key = (cache: IdentityCache): string => `runawaylog-v2-session-${cache}`;
+export const readIdentityCache = (cache: IdentityCache): string | null => sessionStorage.getItem(key(cache));
+export const writeIdentityCache = (cache: IdentityCache, value: string): void => sessionStorage.setItem(key(cache), value);
+export const removeIdentityCache = (cache: IdentityCache): void => sessionStorage.removeItem(key(cache));
+export const resetPreferences = (): void => { persist = undefined; preferences = Object.freeze(defaultPreferences()); };

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { migrate } from './migrate';
-import { readStore, readRecord, writeRecord } from './index';
+import { createAccount, initializeStorage, readStore, readRecord, resetStorage } from './index';
 
 describe('v2 registration repair', () => {
   beforeEach(() => localStorage.clear());
@@ -37,7 +37,7 @@ describe('v2 registration repair', () => {
     }
   });
 
-  it('repairs the whole legacy map once, round-trips extras, and records stored byte evidence', () => {
+  it('repairs the whole legacy map once, round-trips extras, and records stored byte evidence', async () => {
     const original = {
       old: { username: 'old', hits: [{ id: 'a', timestamp: 42, date: 'frozen', extra: true }], profile: { email: 'keep', custom: [1] }, unknown: { keep: true } },
       empty: { username: 'empty', hits: [], settings: { theme: 'keep' } },
@@ -46,20 +46,22 @@ describe('v2 registration repair', () => {
     localStorage.setItem('runawaylog-data', JSON.stringify(original));
     const before = localStorage.getItem('runawaylog-data');
     const writes = vi.spyOn(Storage.prototype, 'setItem');
-    const first = readStore(123);
-    const firstBytes = localStorage.getItem('runawaylog-data');
-    expect(first.users.old.registeredAt).toBe(42);
-    expect(first.users.empty.registeredAt).toBe(123);
-    expect(first.users.existing).toEqual({ username: 'existing', registeredAt: 0, hits: [], profile: { unknown: 2 } });
-    expect(first.users.old).toEqual({ ...original.old, registeredAt: 42, hits: [{ id: 'a', at: 42, extra: true }] });
-    expect(writes).toHaveBeenCalledTimes(2);
-    expect(readStore(999)).toEqual(first);
-    expect(readRecord('old', 999)).toEqual(first.users.old);
-    expect(readRecord('missing', 999)).toBeNull();
-    expect(writes).toHaveBeenCalledTimes(2);
-    console.log(JSON.stringify({ before, firstBytes, secondBytes: localStorage.getItem('runawaylog-data'), writes: writes.mock.calls.length }));
-    writeRecord({ username: 'new', registeredAt: 8, hits: [] });
-    expect(readStore().users.old).toEqual(first.users.old);
-    expect(readStore().unknown).toEqual(first.unknown);
+    const reads = vi.spyOn(Storage.prototype, 'getItem');
+    await resetStorage();
+    await initializeStorage();
+    const first = await readStore();
+    expect(first).toEqual({ schemaVersion: 2, users: {} });
+    expect(await readRecord('old')).toBeNull();
+    expect(await readRecord('missing')).toBeNull();
+    await createAccount('new', { email: 'new@example.test', custom: [1] });
+    const created = await readRecord('new');
+    await resetStorage();
+    await initializeStorage();
+    expect(await readRecord('new')).toEqual(created);
+    expect((await readStore()).users).toEqual({ new: created });
+    expect(reads.mock.calls.some(([key]) => key === 'runawaylog-data')).toBe(false);
+    expect(writes).not.toHaveBeenCalled();
+    expect(localStorage.getItem('runawaylog-data')).toBe(before);
+    expect(localStorage.getItem('runawaylog-data-backups')).toBeNull();
   });
 });

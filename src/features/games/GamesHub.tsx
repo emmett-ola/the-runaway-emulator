@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
-import { loadUserData, saveUserData } from '../../storage';
+import { useAccountSnapshot, updatePlugin } from '../../storage';
+import { readIdentityCache } from '../../lib/storage/preferences';
+import { logout } from '../../auth';
 import { i18n, useT } from '../../lib/i18n';
 import './GamesHub.css';
 
@@ -95,106 +97,40 @@ const CARDS: Card[] = [
 export const GamesHub = () => {
   useT();
   const navigate = useNavigate();
-  const username = sessionStorage.getItem('runawaylog-username') || '';
-  const [forkInTheRoadEnabled, setForkInTheRoadEnabled] = useState(false);
-  const [cardDropEnabled, setCardDropEnabled] = useState(false);
+  const username = readIdentityCache('username') || '';
+  const userData = useAccountSnapshot(username);
+  const forkInTheRoadEnabled = userData?.settings?.games?.forkInTheRoadEnabled ?? false;
+  const cardDropEnabled = userData?.settings?.games?.cardDropEnabled ?? false;
+  const saving = useRef(false);
+  const [error, setError] = useState('');
   const [showCardAlbum, setShowCardAlbum] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const cardsPerPage = 6;
-  const [currentPageCards, setCurrentPageCards] = useState<Card[]>([]);
   
   // 卡片数据已按顺序排列，可直接通过索引访问
   
   const handleLogout = () => {
-    sessionStorage.removeItem('runawaylog-username');
+    logout();
     navigate('/');
     window.location.reload();
   };
   
-  // 从用户数据加载游戏设置和卡片拥有情况
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const userData = await loadUserData(username);
-      if (userData?.settings?.games) {
-        // 加载游戏功能开关设置
-        if (userData.settings.games.forkInTheRoadEnabled !== undefined) {
-          setForkInTheRoadEnabled(userData.settings.games.forkInTheRoadEnabled);
-        }
-        if (userData.settings.games.cardDropEnabled !== undefined) {
-          setCardDropEnabled(userData.settings.games.cardDropEnabled);
-        }
-      }
-      
-      // 确保用户数据中记录每个卡片的拥有数量，初始值为0
-      if (userData) {
-        // 初始化卡片拥有数量记录
-        const cardCollections = userData.cardCollections || {};
-        const updatedCollections = { ...cardCollections };
-        
-        // 为每个卡片确保有对应的拥有数量记录
-        CARDS.forEach(card => {
-          if (updatedCollections[card.number] === undefined) {
-            updatedCollections[card.number] = 0;
-          }
-        });
-        
-        // 如果有更新，保存用户数据
-        if (JSON.stringify(updatedCollections) !== JSON.stringify(cardCollections)) {
-          await saveUserData({
-            ...userData,
-            cardCollections: updatedCollections
-          });
-        }
-      }
-    };
-    
-    fetchUserData();
-  }, [username]);
-  
-  // Save game settings to user data
-  const handleForkInTheRoadToggle = async () => {
-    const userData = await loadUserData(username);
-    if (userData) {
-      const newEnabled = !forkInTheRoadEnabled;
-      const updatedSettings = {
-        ...userData.settings,
-        games: {
-          ...userData.settings?.games,
-          forkInTheRoadEnabled: newEnabled
-        }
-      };
-      
-      await saveUserData({
-        ...userData,
-        settings: updatedSettings
-      });
-      
-      setForkInTheRoadEnabled(newEnabled);
+  const saveGameSetting = async (patch: { forkInTheRoadEnabled?: boolean; cardDropEnabled?: boolean }) => {
+    if (!userData || saving.current) return;
+    saving.current = true;
+    setError('');
+    try {
+      await updatePlugin(userData.accountId, { settings: patch });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      saving.current = false;
     }
   };
-  
-  // Toggle card drop game enabled state
-  const handleCardDropToggle = async () => {
-    const userData = await loadUserData(username);
-    if (userData) {
-      const newEnabled = !cardDropEnabled;
-      const updatedSettings = {
-        ...userData.settings,
-        games: {
-          ...userData.settings?.games,
-          cardDropEnabled: newEnabled
-        }
-      };
-      
-      await saveUserData({
-        ...userData,
-        settings: updatedSettings
-      });
-      
-      setCardDropEnabled(newEnabled);
-    }
-  };
-  
+
+  const handleForkInTheRoadToggle = () => saveGameSetting({ forkInTheRoadEnabled: !forkInTheRoadEnabled });
+  const handleCardDropToggle = () => saveGameSetting({ cardDropEnabled: !cardDropEnabled });
+
   // Toggle slot machine enabled state
   const handleSlotMachineToggle = () => {
     // Slot machine is coming soon, so this is just a placeholder
@@ -240,48 +176,18 @@ export const GamesHub = () => {
     });
   };
   
-  // 获取当前页的卡片，不足的用空白格子填充，并从用户数据中获取实际的拥有数量
-  useEffect(() => {
-    const fetchCurrentPageCards = async () => {
-      const userData = await loadUserData(username);
-      const cardCollections = userData?.cardCollections || {};
-      
-      // 卡片数据 - 这里直接定义，避免依赖外部cards数组
-      
-      // 获取当前页的原始卡片
-      const startIndex = currentPage * cardsPerPage;
-      const endIndex = startIndex + cardsPerPage;
-      const currentCards = CARDS.slice(startIndex, endIndex);
-      
-      // 更新卡片的拥有状态和数量
-      const updatedCards = currentCards.map(card => {
-        const count = cardCollections[card.number] || 0;
-        return {
-          ...card,
-          count,
-          owned: count > 0
-        };
-      });
-      
-      // 不足cardsPerPage张的部分用空白格子填充
-      const filledCards = [...updatedCards];
-      while (filledCards.length < cardsPerPage) {
-        filledCards.push({
-          id: `empty-${filledCards.length + startIndex}`,
-          number: '',
-          nameKey: '',
-          descKey: '',
-          rarity: 'common' as const,
-          owned: false,
-          count: 0
-        });
-      }
-      
-      setCurrentPageCards(filledCards);
-    };
-    
-    fetchCurrentPageCards();
-  }, [currentPage, username]);
+  // Album pages derive from the stable, history-free plugin snapshot.
+  const startIndex = currentPage * cardsPerPage;
+  const currentPageCards: Card[] = CARDS.slice(startIndex, startIndex + cardsPerPage).map(card => {
+    const count = userData?.cardCollections?.[card.number] || 0;
+    return { ...card, count, owned: count > 0 };
+  });
+  while (currentPageCards.length < cardsPerPage) {
+    currentPageCards.push({
+      id: `empty-${currentPageCards.length + startIndex}`, number: '', nameKey: '', descKey: '',
+      rarity: 'common', owned: false, count: 0,
+    });
+  }
   const rarityLabels = {
     common: i18n.t('games.rarity_common'),
     uncommon: i18n.t('games.rarity_uncommon'),
@@ -293,6 +199,7 @@ export const GamesHub = () => {
       <div className="games-hub">
       <div className="games-container">
         <h1 className="games-title">{i18n.t('games.hub_title')}</h1>
+        {error && <p role="alert">{error}</p>}
         <p className="games-subtitle">
           {i18n.t('games.hub_subtitle')}
         </p>

@@ -55,29 +55,11 @@ export const getBrowserTimezone = (): string => {
 };
 
 // Get saved timezone or default to browser timezone
-export const getSavedTimezone = (): string => {
-  try {
-    const saved = getTimezonePreference();
-    if (saved) {
-      return saved;
-    }
-    
-    // First time: save browser timezone and return it
-    const browserTz = getBrowserTimezone();
-    saveTimezone(browserTz);
-    return browserTz;
-  } catch {
-    return getBrowserTimezone();
-  }
-};
+export const getSavedTimezone = (): string => getTimezonePreference() || getBrowserTimezone();
 
-// Save timezone to localStorage
-export const saveTimezone = (timezone: string): void => {
-  try {
-    setTimezonePreference(timezone);
-  } catch (error) {
-    console.error('Error saving timezone:', error);
-  }
+// Preference publication follows the durable repository command.
+export const saveTimezone = async (timezone: string): Promise<void> => {
+  await setTimezonePreference(timezone);
 };
 
 // Convert timestamp to date string in specified timezone

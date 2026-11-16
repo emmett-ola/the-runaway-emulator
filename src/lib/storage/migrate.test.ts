@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { migrate, migrateWithDiagnostics } from './migrate';
-import { loadStore, readRecord, writeRecord, getStorageDiagnostics, readRecoveryStore } from './index';
+import { createAccount, getStorageDiagnostics, getStorageState, initializeStorage, readRecord, readStore, resetStorage } from './index';
 
 const legacy = {
   alice: {
@@ -80,43 +80,58 @@ describe('v2 migration table', () => {
 });
 
 describe('backup-before-write loader', () => {
-  it('backs up exact original bytes before rewriting, persists repair once, and preserves credentials', () => {
+  it('backs up exact original bytes before rewriting, persists repair once, and preserves credentials', async () => {
     const raw = JSON.stringify(legacy, null, 2);
     localStorage.setItem('runawaylog-data', raw);
     localStorage.setItem('runawaylog-credentials', 'opaque credentials');
     const writes = vi.spyOn(Storage.prototype, 'setItem');
-    const first = loadStore(123).store;
-    expect(writes.mock.calls[0][0]).toBe('runawaylog-data-backups');
-    expect(JSON.parse(localStorage.getItem('runawaylog-data-backups')!)).toContain(raw);
-    expect(JSON.parse(localStorage.getItem('runawaylog-data')!)).toEqual(first);
-    const count = writes.mock.calls.length;
-    expect(loadStore(999).store).toEqual(first);
-    expect(writes).toHaveBeenCalledTimes(count);
+    const reads = vi.spyOn(Storage.prototype, 'getItem');
+    await resetStorage();
+    await initializeStorage();
+    expect(await readStore()).toEqual({ schemaVersion: 2, users: {} });
+    await createAccount('fresh');
+    const first = await readStore();
+    await resetStorage();
+    await initializeStorage();
+    expect(await readStore()).toEqual(first);
+    expect(await readRecord('alice')).toBeNull();
+    expect(reads.mock.calls.some(([key]) => key.startsWith('runawaylog-'))).toBe(false);
+    expect(writes).not.toHaveBeenCalled();
+    expect(localStorage.getItem('runawaylog-data')).toBe(raw);
+    expect(localStorage.getItem('runawaylog-data-backups')).toBeNull();
     expect(localStorage.getItem('runawaylog-credentials')).toBe('opaque credentials');
   });
-  it.each(['runawaylog-data-backups', 'runawaylog-data'])('blocks writes when %s fails; original user bytes survive', key => {
+  it.each(['runawaylog-data-backups', 'runawaylog-data'])('blocks writes when %s fails; original user bytes survive', async key => {
     const raw = JSON.stringify(legacy);
     localStorage.setItem('runawaylog-data', raw);
     const real = Storage.prototype.setItem;
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name, value) {
+    const writes = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name, value) {
       if (name === key) throw new Error('quota');
       real.call(this, name, value);
     });
-    expect(loadStore(123).blocked).toBe(true);
-    expect(() => writeRecord({ username: 'new', registeredAt: 123, hits: [] })).toThrow();
+    await resetStorage();
+    await initializeStorage();
+    await expect(createAccount('new')).resolves.toHaveProperty('accountId');
+    expect((await readStore()).users.new.username).toBe('new');
+    expect(getStorageState().status).toBe('ready');
+    expect(getStorageDiagnostics()).toEqual([]);
+    expect(writes).not.toHaveBeenCalled();
     expect(localStorage.getItem('runawaylog-data')).toBe(raw);
-    expect(getStorageDiagnostics().some(d => d.code === 'write-blocked')).toBe(true);
   });
-  it('never replaces malformed user data, exposes an exportable rescue, and reports diagnostics', () => {
+  it('never replaces malformed user data, exposes an exportable rescue, and reports diagnostics', async () => {
     const raw = '{unreadable full original bytes';
     localStorage.setItem('runawaylog-data', raw);
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(loadStore(1).blocked).toBe(true);
-    expect(() => readRecord('new')).toThrow();
-    expect(() => writeRecord({ username: 'new', registeredAt: 1, hits: [] })).toThrow();
+    const reads = vi.spyOn(Storage.prototype, 'getItem');
+    await resetStorage();
+    await initializeStorage();
+    expect(await readRecord('new')).toBeNull();
+    expect(getStorageState().status).toBe('ready');
+    expect(getStorageDiagnostics()).toEqual([]);
+    await expect(createAccount('new')).resolves.toHaveProperty('accountId');
+    expect(reads.mock.calls.some(([key]) => key === 'runawaylog-data')).toBe(false);
     expect(localStorage.getItem('runawaylog-data')).toBe(raw);
-    expect(readRecoveryStore().unknown?.backup).toBe(raw);
-    expect(log).toHaveBeenCalled();
+    expect(localStorage.getItem('runawaylog-data-backups')).toBeNull();
+    expect(log).not.toHaveBeenCalled();
   });
 });

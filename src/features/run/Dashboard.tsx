@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { animate } from 'animejs';
-import type { UserData } from '../../types';
-import { addHit, loadUserData } from '../../storage';
+import { addHit, useAccountSnapshot, useRunView } from '../../storage';
 import { getRandomQuote } from '../../quotes';
 import { SettingsMenu } from '../settings';
 import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from '../../lib/data/transfer';
@@ -13,7 +12,9 @@ import { RunScene } from '../scene';
 import { useSceneTrigger } from '../../lib/scene';
 import { Statistics } from './Statistics';
 import { i18n, useT } from '../../lib/i18n';
-import { loadGameSettings, getRunGame } from '../../lib/games';
+import { getRunGame } from '../../lib/games';
+import { ensureRunView, getRunView } from '../../lib/storage';
+import { subscribePreferences } from '../../lib/storage/preferences';
 import './Dashboard.css';
 
 interface DashboardProps {
@@ -26,7 +27,8 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   useT();
   const claimScene = useSceneTrigger();
   const animationLock = useRef(false);
-  const [userData, setUserData] = useState<UserData>(() => ({ username, registeredAt: Date.now(), hits: [] }));
+  const userData = useAccountSnapshot(username);
+  const [error, setError] = useState('');
   const [isAnimating, setIsAnimating] = useState(false);
   const [quote, setQuote] = useState<string>(() => getRandomQuote());
   const [importDialog, setImportDialog] = useState<{ show: boolean; data: ImportedUserData | null }>({ show: false, data: null });
@@ -35,8 +37,10 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timezone, setTimezone] = useState<string>(() => getSavedTimezone());
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { view, error: viewError } = useRunView(userData?.accountId, timezone, currentMonth);
+  const viewRequest = useRef(0);
   const [runSession, setRunSession] = useState(() => {
-    const game = getRunGame({});
+    const game = getRunGame(userData?.settings?.games ?? {});
     return { game, round: game.createRound() };
   });
   const { round } = runSession;
@@ -55,18 +59,6 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
 
     return () => clearInterval(timer);
   }, []);
-
-  // Load user data on mount
-  useEffect(() => {
-    const fetchUserData = async () => {
-      const data = await loadUserData(username);
-      if (data) {
-        setUserData(data);
-      }
-    };
-
-    fetchUserData();
-  }, [username]);
 
   // Format current time using user's timezone (24-hour format)
   const formattedTime = formatClock(currentTime, timezone);
@@ -90,25 +82,24 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     return () => unsubscribe();
   }, []);
 
-  // Load game settings from user data
+  // Game configuration is already hydrated metadata, not another history load.
   useEffect(() => {
-    const fetchGameSettings = async () => {
-      try {
-        const game = getRunGame(await loadGameSettings(username));
-        setRunSession(previous => previous.game === game ? previous : { game, round: game.createRound() });
-      } catch (error) {
-        console.error('Failed to load game settings:', error);
-      }
-    };
-    
-    fetchGameSettings();
-  }, [username, userData]);
+    const game = getRunGame(userData?.settings?.games ?? {});
+    setRunSession(previous => previous.game === game ? previous : { game, round: game.createRound() });
+  }, [userData?.settings?.games]);
 
-  const handleHit = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleHit = async (event: React.MouseEvent<HTMLButtonElement>) => {
     const buttonIndex = Number(event.currentTarget.dataset.controlIndex);
-    if (animationLock.current) return;
+    if (animationLock.current || !userData || !view) return;
     animationLock.current = true;
     setIsAnimating(true);
+    setError('');
+    const startedAt = Date.now();
+    let animationDuration = 800;
+    let savedSceneTrigger: HTMLButtonElement | null = null;
+    let offerScene = false;
+    let advanceRound = false;
+    try {
     const outcome = round.resolve(round.controls[buttonIndex].id);
 
     // Easter egg takes precedence over every game's outcome.
@@ -168,8 +159,8 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
         // Change quote to something funny
         setQuote(i18n.t('easter_eggs.boom_quote'));
         
-        setTimeout(() => { animationLock.current = false; setIsAnimating(false); }, 800);
-        nextRound();
+        animationDuration = 1500;
+        advanceRound = true;
         return; // Don't record this hit
       }
 
@@ -225,6 +216,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
       }
       
       if (outcome.wrongAnimation) {
+        animationDuration = 1100;
         // Failed attempt: up and down shake animation
         animate(runner, {
           translateY: [0, -10, 10, -10, 10, 0],
@@ -270,6 +262,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
         const randomBounce1 = -15 - Math.random() * 15; // -15 to -30px
         const randomBounce2 = -5 - Math.random() * 10; // -5 to -15px
         const randomDuration = 1200 + Math.random() * 600; // 1200-1800ms
+        animationDuration = randomDuration;
         
         // Calculate final position based on direction
         const finalX = goLeft ? -randomDistance : randomDistance;
@@ -292,32 +285,32 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
       }
     }
 
-    let hitRecorded = false;
-    const hitSaved = outcome.count ? (async () => {
-      const newHit = await addHit(username);
-      if (newHit) {
-        hitRecorded = true;
-        setUserData(prev => ({ ...prev, hits: [...prev.hits, newHit] }));
-        setQuote(getRandomQuote());
-      }
-    })() : Promise.resolve();
-
-    setTimeout(async () => {
-      await hitSaved;
+    if (outcome.count) {
+      await addHit(userData.accountId);
+      await ensureRunView(userData.accountId, timezone, currentMonth);
+      setQuote(getRandomQuote());
+      offerScene = !!outcome.scene;
+      savedSceneTrigger = targetButton ?? null;
+    }
+    advanceRound = true;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      // Keep the lock until both the animation and durable save settle.
+      await new Promise(resolve => setTimeout(resolve, Math.max(0, animationDuration - (Date.now() - startedAt))));
       animationLock.current = false;
       setIsAnimating(false);
-      if (hitRecorded && outcome.scene && claimScene()) {
-        sceneTriggerRef.current = targetButton ?? null;
+      if (advanceRound) nextRound();
+      if (offerScene && claimScene()) {
+        sceneTriggerRef.current = savedSceneTrigger;
         setSceneOpen(true);
       }
-    }, 600);
-    
-    // Each game owns the next round's options and outcome policy.
-    setTimeout(() => nextRound(), 600);
+    }
   };
 
-  const handleExport = () => {
-    exportUserData(userData);
+  const handleExport = async () => {
+    try { await exportUserData(username); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
 
   const handleImportClick = () => {
@@ -342,13 +335,12 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     }
   };
 
-  const handleImportMerge = () => {
+  const handleImportMerge = async () => {
     if (!importDialog.data) return;
     
     try {
-      const mergedData = confirmImportedData(username, importDialog.data, 'merge');
-      const newHitCount = mergedData.hits.length - userData.hits.length;
-      setUserData(mergedData);
+      const mergedData = await confirmImportedData(username, importDialog.data, 'merge');
+      const newHitCount = mergedData.hits.length - (userData?.total ?? 0);
       setImportDialog({ show: false, data: null });
       alert(i18n.t('errors.import_merged', { count: newHitCount }));
       window.location.reload();
@@ -357,12 +349,11 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     }
   };
 
-  const handleImportReplace = () => {
+  const handleImportReplace = async () => {
     if (!importDialog.data || !replaceConfirmed) return;
     
     try {
-      const replacedData = confirmImportedData(username, importDialog.data, 'replace');
-      setUserData(replacedData);
+      await confirmImportedData(username, importDialog.data, 'replace');
       setImportDialog({ show: false, data: null });
       alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
       window.location.reload();
@@ -375,8 +366,32 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
     setImportDialog({ show: false, data: null });
   };
 
-  const handleTimezoneChange = () => {
-    setTimezone(getSavedTimezone());
+  const accountId = userData?.accountId;
+  const prepareView = useCallback(async (nextMonth: Date, nextTimezone: string) => {
+    if (!accountId) return;
+    const request = ++viewRequest.current;
+    try {
+      await ensureRunView(accountId, nextTimezone, nextMonth);
+      if (request !== viewRequest.current) return;
+      setCurrentMonth(nextMonth);
+      setTimezone(nextTimezone);
+      setError('');
+    } catch (reason) {
+      if (request === viewRequest.current) setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }, [accountId]);
+
+  const handleTimezoneChange = useCallback(() => { void prepareView(currentMonth, getSavedTimezone()); }, [prepareView, currentMonth]);
+  useEffect(() => subscribePreferences(handleTimezoneChange), [handleTimezoneChange]);
+
+  const handlePrint = async () => {
+    if (!userData) return;
+    try {
+      await ensureRunView(userData.accountId, timezone, currentMonth);
+      if (getRunView(userData.accountId, timezone, currentMonth)) setShowPrintDialog(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
   };
 
   // R1 close path: Skip, Close and Escape all land here. Nothing is recorded —
@@ -409,7 +424,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
             <SettingsMenu
               onExport={handleExport}
               onImport={handleImportClick}
-              onPrint={() => setShowPrintDialog(true)}
+              onPrint={handlePrint}
               onTimezoneChange={handleTimezoneChange}
             />
             <button onClick={onLogout} className="logout-button">
@@ -427,6 +442,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
         style={{ display: 'none' }}
       />
 
+      {(error || viewError) && <p role="alert">{error || viewError}</p>}
       <main className="dashboard-main">
         <div className="hit-section">
           <h2 className="section-title">{formattedTime}</h2>
@@ -439,7 +455,7 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
                 data-control-index={index}
                 onClick={handleHit}
                 className={`hit-button${control.className ? ` ${control.className}` : ''}`}
-                disabled={isAnimating}
+                disabled={isAnimating || !view || !userData}
               >
                 <span className="hit-button-text">{i18n.t(control.labelKey)}</span>
                 <span className="hit-button-icon">🏃</span>
@@ -448,30 +464,31 @@ export const Dashboard = ({ username, onLogout, showHeader = true }: DashboardPr
           </div>
           
           <p className="motivational-quote">"{quote}"</p>
-          <p className="hit-count" dangerouslySetInnerHTML={{ __html: i18n.t('dashboard.hit_count', { count: userData.hits.length }) }} />
+          <p className="hit-count" dangerouslySetInnerHTML={{ __html: i18n.t('dashboard.hit_count', { count: view?.total ?? userData?.total ?? 0 }) }} />
         </div>
 
-        {userData.hits.length > 0 && (
+        {view && view.total > 0 && (
           <>
             <div className="data-section">
-              <Statistics hits={userData.hits} timezone={timezone} />
-              <HitCalendar 
-                hits={userData.hits} 
+              <Statistics view={view} timezone={timezone} now={currentTime.getTime()} />
+              <HitCalendar
+                dayCounts={view.dayCounts}
                 currentMonth={currentMonth}
-                onMonthChange={setCurrentMonth}
+                onMonthChange={month => { void prepareView(month, timezone); }}
                 timezone={timezone}
               />
             </div>
-            <HitLogs hits={userData.hits} timezone={timezone} />
+            <HitLogs recentHits={view.recentHits} total={view.total} timezone={timezone} />
           </>
         )}
       </main>
 
       {sceneOpen && <RunScene onClose={handleSceneClose} />}
 
-      {showPrintDialog && (
+      {showPrintDialog && view && (
         <PrintCalendar
-          hits={userData.hits}
+          dayCounts={view.dayCounts}
+          total={view.total}
           username={username}
           currentMonth={currentMonth}
           onClose={() => setShowPrintDialog(false)}

@@ -5,18 +5,21 @@ import userEvent from '@testing-library/user-event';
 import { RunScene } from '../features/scene';
 import { Dashboard } from '../features/run';
 import { i18n } from '../lib/i18n';
+import { ensureRunView, iterateFiles, readFullRecord, readRecord, withPinnedGeneration } from '../lib/storage';
+import { seedRecord } from './storage-fixtures';
+import { getSavedTimezone } from '../lib/time';
 
-// Records every saveUserData argument so T6 can prove no scene field is ever
-// handed to the persistence layer (vi.hoisted: visible inside the mock factory).
-const { saveUserDataCalls } = vi.hoisted(() => ({ saveUserDataCalls: [] as unknown[] }));
+// Record the persisted hit returned only after the Run command has committed.
+const { addHitCalls } = vi.hoisted(() => ({ addHitCalls: [] as unknown[] }));
 
 vi.mock('../storage', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../storage')>();
   return {
     ...actual,
-    saveUserData: (...args: Parameters<typeof actual.saveUserData>) => {
-      saveUserDataCalls.push(args[0]);
-      return actual.saveUserData(...args);
+    addHit: async (...args: Parameters<typeof actual.addHit>) => {
+      const hit = await actual.addHit(...args);
+      addHitCalls.push(hit);
+      return hit;
     },
   };
 });
@@ -43,11 +46,11 @@ const renderScene = () => {
 /** Waits for the R1 scene to mount after a Run (600 ms window + async hit). */
 const findDialog = () => screen.findByRole('dialog', {}, { timeout: 4000 });
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   sessionStorage.clear();
-  saveUserDataCalls.length = 0;
-  i18n.setLanguage('en_us');
+  addHitCalls.length = 0;
+  await i18n.setLanguage('en_us');
   // Keep the 0.6% boom easter egg and the Fork index randomisation out of the
   // way so Dashboard-level assertions are deterministic.
   vi.spyOn(Math, 'random').mockReturnValue(0.5);
@@ -257,8 +260,8 @@ describe('RunScene — focus contract (T9, AC-A3, AC-A4)', () => {
 });
 
 describe('RunScene — locale coverage (T8)', () => {
-  it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('T8: every run_scene key resolves in %s', (lang) => {
-    i18n.setLanguage(lang);
+  it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('T8: every run_scene key resolves in %s', async (lang) => {
+    await i18n.setLanguage(lang);
 
     for (const key of SCENE_KEYS) {
       const value = t(`run_scene.${key}`);
@@ -267,8 +270,8 @@ describe('RunScene — locale coverage (T8)', () => {
     }
   });
 
-  it('T8: the scene renders translated copy, not key paths', () => {
-    i18n.setLanguage('zh_cn');
+  it('T8: the scene renders translated copy, not key paths', async () => {
+    await i18n.setLanguage('zh_cn');
     renderScene();
 
     expect(screen.getByRole('dialog')).toHaveAccessibleName('末班车');
@@ -284,8 +287,11 @@ describe('RunScene — locale coverage (T8)', () => {
 });
 
 describe('Dashboard — scene mounting, once per session, no persistence (T6, T7)', () => {
-  const renderDashboard = () =>
-    render(<Dashboard username="testuser" onLogout={() => {}} />);
+  const renderDashboard = async () => {
+    if (!await readRecord('testuser')) await seedRecord({ username: 'testuser', registeredAt: 1, hits: [] });
+    await ensureRunView('testuser', getSavedTimezone(), new Date());
+    return render(<Dashboard username="testuser" onLogout={() => {}} />);
+  };
 
   const pressRun = async () => {
     const user = userEvent.setup();
@@ -293,7 +299,7 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
   };
 
   it('T7: the scene opens after the first successful Run and not again in the same session', async () => {
-    const { unmount } = renderDashboard();
+    const { unmount } = await renderDashboard();
 
     await pressRun();
     expect(await findDialog()).toBeInTheDocument();
@@ -305,7 +311,7 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
 
     await pressRun();
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      await new Promise((resolve) => setTimeout(resolve, 2200));
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
@@ -313,7 +319,7 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
   });
 
   it('T7: a fresh component tree (as a reload) re-arms the scene', async () => {
-    const first = renderDashboard();
+    const first = await renderDashboard();
     await pressRun();
     expect(await findDialog()).toBeInTheDocument();
     act(() => {
@@ -321,7 +327,7 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
     });
     first.unmount();
 
-    renderDashboard();
+    await renderDashboard();
     await pressRun();
     expect(await findDialog()).toBeInTheDocument();
   });
@@ -329,7 +335,7 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
   it('T6: a full Run → choose → Close cycle writes nothing scene-related', async () => {
     const user = userEvent.setup();
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
-    renderDashboard();
+    await renderDashboard();
 
     await pressRun();
     await findDialog();
@@ -344,23 +350,29 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
       expect(String(value)).not.toContain(t('run_scene.title'));
     }
 
-    // The hit and stable registration are v2 data, not scene state.
-    const stored = JSON.parse(localStorage.getItem('runawaylog-data') ?? '{}');
-    expect(stored.schemaVersion).toBe(2);
-    expect(stored.users.testuser.hits).toHaveLength(1);
-    const keys = Object.keys(stored.users.testuser).sort();
-    expect(keys).toEqual(['hits', 'registeredAt', 'username']);
-    expect(keys.some((key) => /scene/i.test(key))).toBe(false);
-
-    // saveUserData was never handed a scene field (in fact never called here).
-    for (const payload of saveUserDataCalls) {
+    // Full-record transfer and every committed virtual file must be free of scene state.
+    const stored = await readFullRecord('testuser');
+    expect(stored.hits).toHaveLength(1);
+    expect(stored.registeredAt).toBe(1);
+    expect(Object.keys(stored).some(key => /scene/i.test(key))).toBe(false);
+    await withPinnedGeneration(async generation => {
+      for await (const file of iterateFiles(generation)) {
+        const text = new TextDecoder().decode(file.bytes);
+        expect(file.path.toLowerCase()).not.toContain('scene');
+        expect(text.toLowerCase()).not.toContain('scene');
+        expect(text).not.toContain(t('run_scene.outcome_board'));
+        expect(text).not.toContain(t('run_scene.title'));
+      }
+    });
+    expect(addHitCalls).toHaveLength(1);
+    for (const payload of addHitCalls) {
       expect(JSON.stringify(payload)).not.toContain('scene');
     }
   });
 
   it('restores focus to the Run control after Skip and Escape (AC-A21)', async () => {
     const user = userEvent.setup();
-    const first = renderDashboard();
+    const first = await renderDashboard();
 
     await pressRun();
     await findDialog();
@@ -370,7 +382,7 @@ describe('Dashboard — scene mounting, once per session, no persistence (T6, T7
     first.unmount();
 
     // Escape path, fresh session
-    renderDashboard();
+    await renderDashboard();
     await pressRun();
     await findDialog();
     await user.keyboard('{Escape}');

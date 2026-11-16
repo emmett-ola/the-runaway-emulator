@@ -6,13 +6,14 @@ import { i18n, useT } from '../../lib/i18n';
 import './HitCalendar.css';
 
 interface HitCalendarProps {
-  hits: HitLog[];
+  hits?: readonly HitLog[];
+  dayCounts?: Readonly<Record<string, number>>;
   currentMonth?: Date;
   onMonthChange?: (date: Date) => void;
   timezone?: string;
 }
 
-export const HitCalendar = ({ hits, currentMonth: propCurrentMonth, onMonthChange, timezone: propTimezone }: HitCalendarProps) => {
+export const HitCalendar = ({ hits, dayCounts, currentMonth: propCurrentMonth, onMonthChange, timezone: propTimezone }: HitCalendarProps) => {
   useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const [internalMonth, setInternalMonth] = useState(new Date());
@@ -32,7 +33,7 @@ export const HitCalendar = ({ hits, currentMonth: propCurrentMonth, onMonthChang
         ease: 'out(3)',
       });
     }
-  }, [hits, currentMonth]);
+  }, [hits, dayCounts, currentMonth]);
 
   // Get calendar days for current month
   const getCalendarDays = () => {
@@ -55,8 +56,8 @@ export const HitCalendar = ({ hits, currentMonth: propCurrentMonth, onMonthChang
     }
     
     // Recalculate hit dates based on current timezone
-    const hitsByDate = new Map<string, number>();
-    hits.forEach(hit => {
+    const hitsByDate = new Map<string, number>(Object.entries(dayCounts ?? {}));
+    if (!dayCounts) hits?.forEach(hit => {
       const dateStr = timestampToDateString(hit.at, timezone);
       hitsByDate.set(dateStr, (hitsByDate.get(dateStr) || 0) + 1);
     });

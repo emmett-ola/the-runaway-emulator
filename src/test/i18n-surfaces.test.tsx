@@ -7,21 +7,14 @@ import { PrintCalendar } from '../features/print';
 import { GamesHub } from '../features/games';
 import { Login } from '../ui/Login';
 import { Settings } from '../features/settings';
-import { loadUserData } from '../storage';
+import * as repository from '../lib/storage';
+import { setTimezonePreference, writeIdentityCache } from '../lib/storage/preferences';
 import userEvent from '@testing-library/user-event';
 import { i18n } from '../lib/i18n';
 import type { SupportedLanguage } from '../lib/i18n';
 import { collection, copy, localeTags, rarities } from './i18n-copy';
 import { renderedExpectations as baseline } from './i18n-copy';
 
-vi.mock('../storage', async importOriginal => {
-  const actual = await importOriginal<typeof import('../storage')>();
-  return {
-    ...actual,
-    loadUserData: vi.fn(async () => ({ username: 'testuser', registeredAt: 1, hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection })),
-    saveUserData: vi.fn(async () => {}),
-  };
-});
 vi.mock('animejs', () => ({ animate: vi.fn() }));
 
 const locales: SupportedLanguage[] = ['en_us', 'zh_cn', 'zh_tw'];
@@ -37,19 +30,27 @@ const existing = (key: string) => {
   return value;
 };
 
-beforeEach(() => {
+const accountId = () => {
+  const account = repository.getAccountSnapshot('testuser');
+  if (!account) throw new Error('Expected the committed test account snapshot');
+  return account.accountId;
+};
+
+beforeEach(async () => {
   vi.clearAllMocks();
-  vi.mocked(loadUserData).mockReset().mockResolvedValue({ username: 'testuser', registeredAt: 1, hits: [], settings: { games: { cardDropEnabled: true } }, cardCollections: collection });
   localStorage.clear();
   sessionStorage.clear();
-  sessionStorage.setItem('runawaylog-username', 'testuser');
-  i18n.setLanguage('en_us');
+  writeIdentityCache('username', 'testuser');
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(today);
+  await i18n.setLanguage('en_us');
+  await setTimezonePreference('UTC');
+  await repository.createAccount('testuser');
+  await repository.updatePlugin(accountId(), { settings: { cardDropEnabled: true }, cardCollections: collection });
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  i18n.setLanguage('en_us');
+  await i18n.setLanguage('en_us');
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -130,17 +131,18 @@ describe.each(locales)('i18n rendered surfaces — %s', locale => {
     expect(document.body).toHaveClass('print-mode');
   });
   it('Settings opens the loaded current-month calendar, never the Settings print surface', async () => {
-    localStorage.setItem('runawaylog-timezone', 'America/Los_Angeles');
+    await setTimezonePreference('America/Los_Angeles');
     const timestamp = Date.UTC(2026, 11, 1, 1);
-    vi.mocked(loadUserData).mockResolvedValueOnce({ username: 'testuser', registeredAt: 1, hits: [{ id: 'loaded', at: timestamp }] });
+    await repository.appendHit(accountId(), { id: 'loaded', at: timestamp });
+    const readRunView = vi.spyOn(repository, 'readRunView');
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const { container, getByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
-    expect(loadUserData).not.toHaveBeenCalled();
+    expect(readRunView).not.toHaveBeenCalled();
     const opener = getByRole('button', { name: existing('settings.print_calendar') });
     opener.focus();
     fireEvent.click(opener);
     const dialog = await waitFor(() => getByRole('dialog'));
-    expect(loadUserData).toHaveBeenCalledExactlyOnceWith('testuser');
+    expect(readRunView).toHaveBeenCalledExactlyOnceWith(accountId(), 'America/Los_Angeles', today);
     expect(print).not.toHaveBeenCalled();
     expect(dialog.querySelector('.print-month-title')).toHaveTextContent(month.toLocaleDateString(localeTags[locale], { month: 'long', year: 'numeric' }));
     expect(texts(dialog, '.print-stat-value')).toEqual(['1', '1']);
@@ -233,51 +235,62 @@ describe('Print dialog interaction contract', () => {
     unmount();
     expect(focus).not.toHaveBeenCalled();
   });
-  it.each(['missing', 'rejected'])('Settings falls back to empty hits for %s data', async mode => {
-    if (mode === 'missing') vi.mocked(loadUserData).mockResolvedValueOnce(null);
-    else vi.mocked(loadUserData).mockRejectedValueOnce(new Error('load unavailable'));
-    const { getByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
+  it.each(['missing', 'rejected'])('Settings shows an error without a misleading empty calendar for %s data', async mode => {
+    if (mode === 'missing') await repository.deleteRecord(accountId());
+    else vi.spyOn(repository, 'readRunView').mockRejectedValueOnce(new Error('load unavailable'));
+    const { container, getByRole, queryByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
     fireEvent.click(getByRole('button', { name: existing('settings.print_calendar') }));
-    const dialog = await waitFor(() => getByRole('dialog'));
-    expect(texts(dialog, '.print-stat-value')).toEqual(['0', '0']);
-    expect(dialog.querySelectorAll('.print-day-number')).toHaveLength(30);
+    const error = await waitFor(() => getByRole('alert'));
+    expect(error).toHaveTextContent(mode === 'missing' ? 'Account not found' : 'load unavailable');
+    expect(queryByRole('dialog')).toBeNull();
+    expect(container.querySelectorAll('.print-day-number')).toHaveLength(0);
+    expect(container.querySelectorAll('.print-stat-value')).toHaveLength(0);
+    expect(document.body).not.toHaveClass('print-mode');
   });
   it('captures the click month once before awaiting the data load', async () => {
-    let resolve!: (value: Awaited<ReturnType<typeof loadUserData>>) => void;
-    vi.mocked(loadUserData).mockReturnValueOnce(new Promise(done => { resolve = done; }));
-    vi.setSystemTime(new Date(2026, 10, 30, 23, 59, 58));
+    const originalReadRunView = repository.readRunView;
+    let resolve!: () => void;
+    const pending = new Promise<void>(done => { resolve = done; });
+    const readRunView = vi.spyOn(repository, 'readRunView').mockImplementationOnce(async (...args) => {
+      await pending;
+      return originalReadRunView(...args);
+    });
+    const clickTime = new Date(2026, 10, 30, 23, 59, 58);
+    vi.setSystemTime(clickTime);
     const { getByRole, queryByRole } = render(<MemoryRouter><Settings /></MemoryRouter>);
     fireEvent.click(getByRole('button', { name: existing('settings.print_calendar') }));
+    expect(readRunView).toHaveBeenCalledExactlyOnceWith(accountId(), 'UTC', clickTime);
     expect(queryByRole('dialog')).toBeNull();
     vi.setSystemTime(new Date(2026, 11, 1, 0, 0, 1));
-    await act(async () => resolve({ username: 'testuser', registeredAt: 1, hits: [] }));
-    const dialog = getByRole('dialog');
+    await act(async () => { resolve(); });
+    const dialog = await waitFor(() => getByRole('dialog'));
     expect(dialog.querySelector('.print-month-title')).toHaveTextContent('November 2026');
     expect(dialog.querySelectorAll('.print-day-number')).toHaveLength(30);
+    expect(texts(dialog, '.print-stat-value')).toEqual(['0', '0']);
   });
 });
 
 it('resolves keys on rerender without adding Print/Album language subscriptions or refetching', async () => {
-  const { loadUserData } = await import('../storage');
+  const reads = [vi.spyOn(repository, 'readRecord'), vi.spyOn(repository, 'readFullRecord'), vi.spyOn(repository, 'readRunView')];
   const { container, rerender } = render(<PrintCalendar hits={[]} username="testuser" currentMonth={month} onClose={close} />);
   for (const locale of locales) {
-    act(() => i18n.setLanguage(locale));
+    await act(async () => { await i18n.setLanguage(locale); });
     rerender(<PrintCalendar hits={[]} username="testuser" currentMonth={month} onClose={close} />);
     checkPrint(container, locale);
   }
   cleanup();
   const result = await album();
-  const calls = vi.mocked(loadUserData).mock.calls.length;
+  const calls = reads.map(read => read.mock.calls.length);
   for (const locale of locales) {
-    act(() => i18n.setLanguage(locale));
+    await act(async () => { await i18n.setLanguage(locale); });
     result.rerender(<MemoryRouter><GamesHub /></MemoryRouter>);
     checkAlbum(result.modal, locale, 0);
   }
-  expect(vi.mocked(loadUserData).mock.calls.length).toBe(calls);
+  expect(reads.map(read => read.mock.calls.length)).toEqual(calls);
 });
 
 it('zh_cn rendered card strings and chrome equal the pinned baseline except the exact authorized rarity/menu changes', async () => {
-  i18n.setLanguage('zh_cn');
+  await i18n.setLanguage('zh_cn');
   const { modal } = await album();
   for (const page of [0, 1]) {
     const cards = baseline.cards.slice(page * 6, page * 6 + 6);
@@ -299,11 +312,11 @@ it('zh_cn rendered card strings and chrome equal the pinned baseline except the 
   expect(texts(container, '.user-menu-text')).toEqual(baseline.zhCnChrome.menu.map(value => value === '关于我们' ? '关于' : value));
 });
 
-it('Navigation keeps its existing persistent-route subscription', () => {
+it('Navigation keeps its existing persistent-route subscription', async () => {
   const { container } = render(<MemoryRouter><Navigation username="testuser" onLogout={close} /></MemoryRouter>);
   fireEvent.click(container.querySelector('.nav-user')!);
   for (const locale of locales) {
-    act(() => i18n.setLanguage(locale));
+    await act(async () => { await i18n.setLanguage(locale); });
     checkNav(container);
   }
 });

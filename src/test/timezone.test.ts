@@ -56,15 +56,15 @@ describe('timezone', () => {
       expect(timezone.length).toBeGreaterThan(0);
     });
 
-    it('saves and retrieves timezone', () => {
-      saveTimezone('America/New_York');
+    it('saves and retrieves timezone', async () => {
+      await saveTimezone('America/New_York');
       const retrieved = getSavedTimezone();
       expect(retrieved).toBe('America/New_York');
     });
 
-    it('overwrites previous timezone', () => {
-      saveTimezone('America/New_York');
-      saveTimezone('Europe/London');
+    it('overwrites previous timezone', async () => {
+      await saveTimezone('America/New_York');
+      await saveTimezone('Europe/London');
       const retrieved = getSavedTimezone();
       expect(retrieved).toBe('Europe/London');
     });

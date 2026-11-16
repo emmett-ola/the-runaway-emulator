@@ -1,252 +1,123 @@
-import type { UserData } from './types';
-import { readRecord, writeRecord } from './lib/storage';
+import type { AccountSnapshot } from './lib/storage';
+import { createAccount, ensureRunView, getAccountSnapshot, initializeStorage, readRecord } from './lib/storage';
+import { getSavedTimezone } from './lib/time';
 import { readIdentityCache, writeIdentityCache, removeIdentityCache } from './lib/storage/preferences';
 
 export type AuthStatus = 'logged_out' | 'logging_in' | 'logged_in' | 'registering';
-
-export type TokenData = {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-};
-
+export type TokenData = { accessToken: string; refreshToken: string; expiresAt: number };
 export type AuthContextType = {
   authStatus: AuthStatus;
-  currentUser: UserData | null;
+  currentUser: AccountSnapshot | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, email?: string) => Promise<void>;
   logout: () => void;
   token: string | null;
 };
 
-/**
- * Save authentication token to localStorage
- */
+// Local identity is demo-only and tab-scoped; legacy caches are never read.
 export const saveToken = (token: string, expiresAt: number): void => {
-  try {
-    writeIdentityCache('token', JSON.stringify({ token, expiresAt }));
-  } catch (error) {
-    console.error('Error saving token:', error);
-  }
+  writeIdentityCache('token', JSON.stringify({ token, expiresAt }));
 };
 
-/**
- * Load authentication token from localStorage
- */
 export const loadToken = (): string | null => {
-  try {
-    const tokenData = readIdentityCache('token');
-    if (!tokenData) return null;
-    
-    const { token, expiresAt } = JSON.parse(tokenData);
-    
-    // Check if token is expired
-    if (Date.now() > expiresAt) {
-      removeIdentityCache('token');
-      return null;
-    }
-    
-    return token;
-  } catch (error) {
-    console.error('Error loading token:', error);
-    return null;
-  }
+  const raw = readIdentityCache('token');
+  if (!raw) return null;
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { return null; }
+  if (!value || typeof value !== 'object' || !('token' in value) || typeof value.token !== 'string'
+    || !('expiresAt' in value) || typeof value.expiresAt !== 'number' || value.expiresAt <= Date.now()) return null;
+  return value.token;
 };
 
-/**
- * Remove authentication token from localStorage
- */
 export const removeToken = (): void => {
-  try {
-    removeIdentityCache('token');
-    removeIdentityCache('currentUser');
-  } catch (error) {
-    console.error('Error removing token:', error);
-  }
+  removeIdentityCache('token');
+  removeIdentityCache('currentUser');
 };
 
-/**
- * Save current user data to localStorage
- */
-export const saveCurrentUser = (userData: UserData): void => {
-  try {
-    writeIdentityCache('currentUser', JSON.stringify({ username: userData.username }));
-  } catch (error) {
-    console.error('Error saving current user:', error);
-  }
+export const saveCurrentUser = (userData: { username: string }): void => {
+  writeIdentityCache('currentUser', JSON.stringify({ username: userData.username }));
 };
 
-/**
- * Load current user data from localStorage
- */
-export const loadCurrentUser = (): UserData | null => {
-  try {
-    const userData = readIdentityCache('currentUser');
-    const identity: unknown = userData ? JSON.parse(userData) : null;
-    if (!identity || typeof identity !== 'object' || !('username' in identity) || typeof identity.username !== 'string') return null;
-    return readRecord(identity.username);
-  } catch (error) {
-    console.error('Error loading current user:', error);
-    return null;
-  }
+export const loadCurrentUser = (): AccountSnapshot | null => {
+  const raw = readIdentityCache('currentUser');
+  if (!raw) return null;
+  let identity: unknown;
+  try { identity = JSON.parse(raw); } catch { return null; }
+  return identity && typeof identity === 'object' && 'username' in identity && typeof identity.username === 'string'
+    ? getAccountSnapshot(identity.username) : null;
 };
 
-/**
- * Check if user is authenticated
- */
-export const isAuthenticated = (): boolean => {
-  return !!loadToken();
-};
+export const isAuthenticated = (): boolean => !!loadToken();
 
-/**
- * Hash a password using SHA-256
- */
+async function hydrateAccount(username: string): Promise<AccountSnapshot> {
+  const account = await readRecord(username);
+  if (!account) throw new Error('Account not found');
+  await ensureRunView(account.accountId, getSavedTimezone(), new Date());
+  return account;
+}
+
+/** Preserve the existing insecure demo check; this is not real authentication. */
 const hashPassword = (password: string): string => {
-  // For now, we'll use a simple hash function
-  // In production, you should use a more secure hashing algorithm like bcrypt
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  
-  // Use a simple hash function that works synchronously
-  // since crypto.subtle.digest is async and we need a sync function here
   let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    hash = ((hash << 5) - hash) + data[i];
-    hash = hash & hash; // Convert to 32bit integer
+  for (const byte of new TextEncoder().encode(password)) {
+    hash = ((hash << 5) - hash) + byte;
+    hash = hash & hash;
   }
-  
-  // Convert hash to hex string
   return Math.abs(hash).toString(16).padStart(8, '0');
 };
 
-/**
- * Save user credentials to localStorage
- */
-const saveUserCredentials = (username: string, password: string): void => {
-  try {
-    const hashedPassword = hashPassword(password);
-    const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
-    credentials[username] = hashedPassword;
-    writeIdentityCache('credentials', JSON.stringify(credentials));
-  } catch (error) {
-    console.error('Error saving user credentials:', error);
+const readCredentials = (): Record<string, string> => {
+  const raw = readIdentityCache('credentials');
+  if (!raw) return {};
+  const value: unknown = JSON.parse(raw);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid demo credentials');
+  const credentials: Record<string, string> = {};
+  for (const [username, hash] of Object.entries(value)) {
+    if (typeof hash !== 'string') throw new Error('Invalid demo credentials');
+    Object.defineProperty(credentials, username, { value: hash, enumerable: true, writable: true, configurable: true });
   }
+  return credentials;
 };
 
-/**
- * Load user credentials from localStorage
- */
-const loadUserCredentials = (username: string): string | null => {
-  try {
-    const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
-    return credentials[username] || null;
-  } catch (error) {
-    console.error('Error loading user credentials:', error);
-    return null;
-  }
+const saveCredentials = (username: string, password: string): void => {
+  writeIdentityCache('credentials', JSON.stringify({ ...readCredentials(), [username]: hashPassword(password) }));
 };
 
-/**
- * Authenticate user with username and password
- * If user doesn't exist, create a new user automatically
- */
-export const login = async (username: string, password: string): Promise<UserData> => {
-  // For now, we'll use a local implementation
-  // In production, this would make an API call to the backend
-  
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Get user data
-  let userData = readRecord(username);
-  
-  // If user doesn't exist, create a new user automatically
-  if (!userData) {
-    // Create new user
-    userData = {
-      username,
-      registeredAt: Date.now(),
-      hits: [],
-    };
-    
-    // Save new user data
-    writeRecord(userData);
-    
-    // If password is provided, save credentials
-    if (password.trim()) {
-      saveUserCredentials(username, password);
-    }
-  } else {
-    // Check if password is provided, if not, skip password validation (allow passwordless login)
-    if (password.trim()) {
-      // Verify password only if it's provided
-      const storedHash = loadUserCredentials(username);
-      const passwordHash = hashPassword(password);
-      
-      if (!storedHash || storedHash !== passwordHash) {
-        throw new Error('Invalid username or password');
-      }
-    }
-  }
-  
-  // Mock token generation
-  const mockToken = `mock-jwt-token-${username}-${Date.now()}`;
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-  
-  saveToken(mockToken, expiresAt);
-  saveCurrentUser(userData);
-  
-  return userData;
+const enterDemoSession = (account: AccountSnapshot): void => {
+  saveToken(`mock-jwt-token-${account.username}-${Date.now()}`, Date.now() + 24 * 60 * 60 * 1000);
+  saveCurrentUser(account);
 };
 
-/**
- * Register a new user
- */
-export const register = async (username: string, password: string, email?: string): Promise<UserData> => {
-  // For now, we'll use a local implementation
-  // In production, this would make an API call to the backend
-  
-  // Validate password length
-  if (password.length < 6) {
-    throw new Error('Password must be at least 6 characters long');
+/** Empty-password entry retains the shipped local-demo bypass. */
+export const login = async (username: string, password: string): Promise<AccountSnapshot> => {
+  await initializeStorage();
+  const existing = await readRecord(username);
+  if (!existing) {
+    await createAccount(username);
+    if (password.trim()) saveCredentials(username, password);
+  } else if (password.trim()) {
+    const credentials = readCredentials();
+    const storedHash = Object.prototype.hasOwnProperty.call(credentials, username) ? credentials[username] : undefined;
+    if (!storedHash || storedHash !== hashPassword(password)) throw new Error('Invalid username or password');
   }
-  
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Check if username already exists
-  const credentials = JSON.parse(readIdentityCache('credentials') || '{}');
-  if (credentials[username] || readRecord(username)) {
-    throw new Error('Username already exists');
-  }
-  
-  // Create new user
-  const newUser: UserData = {
-    username,
-    registeredAt: Date.now(),
-    hits: [],
-    profile: { email },
-  };
-  
-  // Save user data
-  writeRecord(newUser);
-  
-  // Save credentials
-  saveUserCredentials(username, password);
-  
-  // Mock token generation
-  const mockToken = `mock-jwt-token-${username}-${Date.now()}`;
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-  
-  saveToken(mockToken, expiresAt);
-  saveCurrentUser(newUser);
-  
-  return newUser;
+  const account = await hydrateAccount(username);
+  enterDemoSession(account);
+  return account;
 };
 
-/**
- * Logout user
- */
+export const register = async (username: string, password: string, email?: string): Promise<AccountSnapshot> => {
+  if (password.length < 6) throw new Error('Password must be at least 6 characters long');
+  await initializeStorage();
+  const credentials = readCredentials();
+  if (Object.prototype.hasOwnProperty.call(credentials, username) || await readRecord(username)) throw new Error('Username already exists');
+  await createAccount(username, email ? { email } : undefined);
+  saveCredentials(username, password);
+  const account = await hydrateAccount(username);
+  enterDemoSession(account);
+  return account;
+};
+
 export const logout = (): void => {
   removeToken();
+  removeIdentityCache('username');
 };

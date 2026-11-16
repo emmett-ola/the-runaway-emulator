@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { getLanguagePreference, setLanguagePreference } from '../storage/preferences';
+import { getLanguagePreference, setLanguagePreference, subscribePreferences } from '../storage/preferences';
 import { locales, languageCodes, resolveLanguage, getLocaleMetadata } from './registry';
 import type { SupportedLanguage } from './registry';
 export type { SupportedLanguage } from './registry';
@@ -13,21 +13,20 @@ class I18n {
 
   constructor() {
     this.currentLanguage = resolveLanguage(getLanguagePreference() || navigator.language);
+    subscribePreferences(() => this.hydrateLanguage());
   }
 
-  public setLanguage(lang: string): void {
-    const normalizedLang = resolveLanguage(lang);
-    if (this.currentLanguage !== normalizedLang) {
-      this.currentLanguage = normalizedLang;
-      setLanguagePreference(normalizedLang);
-      this.listeners.forEach(callback => {
-        try {
-          callback();
-        } catch (error) {
-          console.error('Error in language change callback:', error);
-        }
-      });
-    }
+  /** Hydration observes preferences without issuing another persisted command. */
+  public hydrateLanguage(): void {
+    const language = resolveLanguage(getLanguagePreference() || navigator.language);
+    if (language === this.currentLanguage) return;
+    this.currentLanguage = language;
+    this.listeners.forEach(callback => callback());
+  }
+
+  public async setLanguage(lang: string): Promise<void> {
+    await setLanguagePreference(resolveLanguage(lang));
+    this.hydrateLanguage();
   }
 
   public getLanguage(): SupportedLanguage {

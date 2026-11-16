@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
-import type { HitLog } from '../../types';
+import { useMemo, useState } from 'react';
+import type { HitLog, RunView } from '../../types';
 import { timestampToDateString, hourInTimezone } from '../../lib/time';
 import { i18n, useT } from '../../lib/i18n';
 import './Statistics.css';
 
 interface StatisticsProps {
-  hits: HitLog[];
+  view?: RunView;
+  hits?: readonly HitLog[];
   timezone: string;
+  now?: number;
 }
 
 interface DayStats {
@@ -17,53 +19,58 @@ interface HourStats {
   [key: number]: number;
 }
 
-export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
+export const Statistics = ({ view, hits: storedHits, timezone, now: currentTime }: StatisticsProps) => {
   useT();
+  const [mountedAt] = useState(() => Date.now());
+  const now = currentTime ?? mountedAt;
   const stats = useMemo(() => {
-    const hits = storedHits.map(hit => ({ ...hit, day: timestampToDateString(hit.at, timezone) }));
-    if (hits.length === 0) {
+    // Compatibility input is projected here only; runtime receives the verified index.
+    const timestamps = view?.timestamps ?? (storedHits ?? []).map((hit, firstOrdinal) => ({ at: hit.at, count: 1, firstOrdinal }));
+    const total = view?.total ?? storedHits?.length ?? 0;
+    const firstAt = view?.firstAt ?? storedHits?.[0]?.at;
+    if (total === 0 || firstAt === undefined || firstAt === null) {
       return {
-        total: 0,
-        today: 0,
-        thisWeek: 0,
-        thisMonth: 0,
-        longestStreak: 0,
-        currentStreak: 0,
-        averagePerDay: 0,
-        mostActiveDay: '',
-        mostActiveHour: '',
-        peakDay: '',
-        peakCount: 0,
+        total: 0, today: 0, thisWeek: 0, thisMonth: 0,
+        longestStreak: 0, currentStreak: 0, averagePerDay: 0,
+        mostActiveDay: '', mostActiveHour: '', peakDay: '', peakCount: 0,
       };
     }
 
-    const now = Date.now();
     const todayStr = timestampToDateString(now, timezone);
-    
     const todayDay = new Date(`${todayStr}T00:00:00Z`);
     const weekStart = new Date(todayDay);
     weekStart.setUTCDate(todayDay.getUTCDate() - todayDay.getUTCDay());
     const weekStartKey = weekStart.toISOString().slice(0, 10);
     const monthStartKey = `${todayStr.slice(0, 7)}-01`;
-
-    // Count hits by period
     let today = 0;
     let thisWeek = 0;
     let thisMonth = 0;
+    const dateStats: DayStats = {};
+    const dayStats: DayStats = {};
+    const hourStats: HourStats = {};
+    const dayFirst: Record<string, number> = {};
+    const dateFirst: Record<string, number> = {};
+    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-    hits.forEach(hit => {
-      if (hit.day === todayStr) today++;
-      if (hit.day >= weekStartKey && hit.day <= todayStr) thisWeek++;
-      if (hit.day >= monthStartKey && hit.day <= todayStr) thisMonth++;
+    timestamps.forEach(({ at, count, firstOrdinal }) => {
+      const day = timestampToDateString(at, timezone);
+      if (day === todayStr) today += count;
+      if (day >= weekStartKey && day <= todayStr) thisWeek += count;
+      if (day >= monthStartKey && day <= todayStr) thisMonth += count;
+      const dayKey = dayKeys[new Date(`${day}T00:00:00Z`).getUTCDay()];
+      dayStats[dayKey] = (dayStats[dayKey] || 0) + count;
+      dayFirst[dayKey] = Math.min(dayFirst[dayKey] ?? Infinity, firstOrdinal);
+      dateStats[day] = (dateStats[day] || 0) + count;
+      dateFirst[day] = Math.min(dateFirst[day] ?? Infinity, firstOrdinal);
+      const hour = hourInTimezone(at, timezone);
+      hourStats[hour] = (hourStats[hour] || 0) + count;
     });
 
-    // Longest is historical; current is only the chain ending today.
-    const uniqueDates = [...new Set(hits.map(hit => hit.day))].sort();
     let currentStreak = 0;
     let longestStreak = 0;
     let chain = 0;
     let previousDay = -Infinity;
-    for (const date of uniqueDates) {
+    for (const date of Object.keys(dateStats).sort()) {
       const day = Date.parse(`${date}T00:00:00Z`) / 86400000;
       chain = day - previousDay === 1 ? chain + 1 : 1;
       longestStreak = Math.max(longestStreak, chain);
@@ -71,63 +78,22 @@ export const Statistics = ({ hits: storedHits, timezone }: StatisticsProps) => {
       previousDay = day;
     }
 
-    // Calculate average per day
-    const firstHit = hits[0];
-    const daysSinceFirst = Math.max(1, Math.ceil((now - firstHit.at) / (1000 * 60 * 60 * 24)));
-    const averagePerDay = hits.length / daysSinceFirst;
-
-    // Most active day of week
-    const dayStats: DayStats = {};
-    const dayKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    
-    hits.forEach(hit => {
-      const dayKey = dayKeys[new Date(`${hit.day}T00:00:00Z`).getUTCDay()];
-      dayStats[dayKey] = (dayStats[dayKey] || 0) + 1;
-    });
-    
-    const mostActiveDay = Object.entries(dayStats).reduce((a, b) => 
-      b[1] > a[1] ? b : a, ['', 0]
-    )[0];
-
-    // Most active hour
-    const hourStats: HourStats = {};
-    
-    hits.forEach(hit => {
-      const hour = hourInTimezone(hit.at, timezone);
-      hourStats[hour] = (hourStats[hour] || 0) + 1;
-    });
-    
-    const mostActiveHourNum = Object.entries(hourStats).reduce((a, b) => 
-      b[1] > a[1] ? b : a, ['0', 0]
-    )[0];
-    
-    const mostActiveHour = `${mostActiveHourNum}:00 - ${parseInt(mostActiveHourNum) + 1}:00`;
-
-    // Peak day (most hits in a single day)
-    const dateStats: DayStats = {};
-    
-    hits.forEach(hit => {
-      dateStats[hit.day] = (dateStats[hit.day] || 0) + 1;
-    });
-    
-    const [peakDay, peakCount] = Object.entries(dateStats).reduce((a, b) => 
-      b[1] > a[1] ? b : a, ['', 0]
-    );
-
+    // Original array insertion order breaks weekday/date ties. Numeric hour keys
+    // retain the shipped numeric-key enumeration tie (earliest clock hour).
+    const rankByCountThenOrdinal = (counts: DayStats, ordinals: Record<string, number>) =>
+      Object.entries(counts).sort((a, b) => b[1] - a[1] || ordinals[a[0]] - ordinals[b[0]])[0];
+    const mostActiveDay = rankByCountThenOrdinal(dayStats, dayFirst)[0];
+    const [peakDay, peakCount] = rankByCountThenOrdinal(dateStats, dateFirst);
+    const mostActiveHourNum = Object.entries(hourStats).reduce((a, b) => b[1] > a[1] ? b : a, ['0', 0])[0];
+    const daysSinceFirst = Math.max(1, Math.ceil((now - firstAt) / 86400000));
     return {
-      total: hits.length,
-      today,
-      thisWeek,
-      thisMonth,
-      longestStreak,
-      currentStreak,
-      averagePerDay: Math.round(averagePerDay * 10) / 10,
+      total, today, thisWeek, thisMonth, longestStreak, currentStreak,
+      averagePerDay: Math.round(total / daysSinceFirst * 10) / 10,
       mostActiveDay,
-      mostActiveHour,
-      peakDay,
-      peakCount,
+      mostActiveHour: `${mostActiveHourNum}:00 - ${parseInt(mostActiveHourNum) + 1}:00`,
+      peakDay, peakCount,
     };
-  }, [storedHits, timezone]);
+  }, [view, storedHits, timezone, now]);
 
   return (
       <div className="statistics-container">

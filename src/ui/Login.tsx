@@ -49,24 +49,26 @@ export const Login = ({ onLogin }: LoginProps) => {
       onLogin(username.trim());
     } catch (err: unknown) {
       setStorageBlocked(err instanceof StorageBlockedError);
-      // Handle specific error messages
-      let errorMessage = '';
-      if (typeof err === 'object' && err !== null && 'message' in err && err.message === 'Invalid username or password') {
-        errorMessage = i18n.t('login.error.invalid_credentials');
-      } else {
-        errorMessage = i18n.t('login.error.login_failed');
-      }
-      setError(errorMessage);
-      console.error(err);
+      setError(err instanceof Error ? err.message : i18n.t('login.error.login_failed'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleLanguageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLanguage = e.target.value as SupportedLanguage;
-    setSelectedLanguage(newLanguage);
-    i18n.setLanguage(newLanguage);
+    try {
+      await i18n.setLanguage(newLanguage);
+      setSelectedLanguage(newLanguage);
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const handleRecoveryExport = async () => {
+    try { await exportRecoveryData(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
 
   return (
@@ -91,8 +93,8 @@ export const Login = ({ onLogin }: LoginProps) => {
         <p className="login-subtitle">{i18n.t('login.subtitle')}</p>
         <p className="login-slogan">"{i18n.t('login.slogan')}"</p>
         
-        {error && <div className="login-error">{error}</div>}
-        {storageBlocked && <button type="button" onClick={exportRecoveryData}>{i18n.t('settings.export_data')}</button>}
+        {error && <div className="login-error" role="alert">{error}</div>}
+        {storageBlocked && <button type="button" onClick={handleRecoveryExport}>{i18n.t('settings.export_data')}</button>}
         
         <form onSubmit={handleSubmit}>
           <div className="login-form-group">

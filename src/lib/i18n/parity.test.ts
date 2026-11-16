@@ -15,6 +15,7 @@ import frozenTw from './__fixtures__/zh_tw.json';
 import { approvedVersionPlaceholder } from './baselineExceptions';
 import { i18n, t, useT } from './index';
 import { files, scan } from '../../test/i18n-hardcoded-scan';
+import { readPreferences } from '../storage';
 
 const translations = { en_us, zh_cn, zh_tw };
 const fixtures = { en_us: frozenEn, zh_cn: frozenCn, zh_tw: frozenTw };
@@ -31,9 +32,9 @@ const properNouns = ['storage.firebase', 'storage.supabase', 'storage.webdav'];
 // This documents/tests the existing subset; a shared production rendering helper is deferred.
 const markupPaths = ['dashboard.hit_count', 'import_dialog.warning', 'settings.powered_by'];
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  i18n.setLanguage('en_us');
+  await i18n.setLanguage('en_us');
   vi.restoreAllMocks();
 });
 
@@ -41,12 +42,12 @@ describe('typed locale parity against committed shipped XML output', () => {
   for (const locale of ['en_us', 'zh_cn', 'zh_tw'] as const) {
     const actual = flatten(translations[locale]);
     const frozen = flatten(fixtures[locale]);
-    it(`${locale}: identical full locale key paths and placeholders, with every frozen baseline string byte preserved`, () => {
+    it(`${locale}: identical full locale key paths and placeholders, with every frozen baseline string byte preserved`, async () => {
       expect(Object.keys(actual).sort(), `${locale}: missing/extra key paths`).toEqual(Object.keys(english).sort());
       for (const [key, value] of Object.entries(actual)) {
         expect(placeholders(value), `${locale}:${key}: placeholders`).toEqual(placeholders(english[key]));
       }
-      i18n.setLanguage(locale);
+      await i18n.setLanguage(locale);
       for (const [key, value] of Object.entries(frozen)) {
         expect(Object.hasOwn(actual, key), `${locale}:${key}: missing frozen key`).toBe(true);
         const approved = approvedVersionPlaceholder(key, value);
@@ -65,7 +66,7 @@ describe('typed locale parity against committed shipped XML output', () => {
         expect(Object.keys(actual).filter(key => actual[key] === english[key]).sort()).toEqual(properNouns);
       }
     });
-    it(`${locale}: markup remains a string with exactly the shipped tags`, () => {
+    it(`${locale}: markup remains a string with exactly the shipped tags`, async () => {
       const paths = Object.keys(actual).filter(key => /<[^>]+>/.test(actual[key]));
       expect(paths.sort()).toEqual([...markupPaths].sort());
       for (const key of paths) {
@@ -73,7 +74,7 @@ describe('typed locale parity against committed shipped XML output', () => {
         expect(actual[key], key).toBe(frozen[key]);
         for (const tag of actual[key].match(/<[^>]+>/g) ?? []) expect(['<strong>', '</strong>', '<br/>'], `${key}:${tag}`).toContain(tag);
       }
-      i18n.setLanguage(locale);
+      await i18n.setLanguage(locale);
       const html = t('dashboard.hit_count', { count: 42 });
       const rendered = renderToStaticMarkup(createElement('span', { dangerouslySetInnerHTML: { __html: html } }));
       expect(rendered).toBe(`<span>${frozen['dashboard.hit_count'].replace('{count}', '42')}</span>`);
@@ -131,7 +132,8 @@ describe('typed locale parity against committed shipped XML output', () => {
     console.log(`Unchanged hardcoded-copy AST rule: ${sources.length} sources; 0 findings; directories: ${directories.join(', ')}`);
   });
 
-  it('preserves fallback, missing variables, language aliases, persistence and subscriptions', () => {
+  it('preserves fallback, missing variables, language aliases, persistence and subscriptions', async () => {
+    localStorage.setItem('app-language', 'obsolete-language-sentinel');
     const callback = vi.fn();
     const unsubscribe = i18n.onLanguageChange(callback);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -141,17 +143,18 @@ describe('typed locale parity against committed shipped XML output', () => {
     expect(t('dashboard.hit_count')).toContain('{count}');
     expect(t('dashboard.hit_count', { count: 0 })).toContain('<strong>0</strong>');
     for (const [input, expected] of [['zh', 'zh_cn'], ['zh_hk', 'zh_tw'], ['en', 'en_us'], ['zh_cn', 'zh_cn'], ['unsupported', 'en_us']] as const) {
-      i18n.setLanguage(input);
+      await i18n.setLanguage(input);
       expect(i18n.getLanguage()).toBe(expected);
-      expect(localStorage.getItem('app-language')).toBe(expected);
+      expect((await readPreferences()).language).toBe(expected);
+      expect(localStorage.getItem('app-language')).toBe('obsolete-language-sentinel');
     }
     expect(callback).toHaveBeenCalledTimes(5);
     unsubscribe();
-    i18n.setLanguage('zh_tw');
+    await i18n.setLanguage('zh_tw');
     expect(callback).toHaveBeenCalledTimes(5);
   });
 
-  it('useT updates existing mounted state without remounting or losing the open dialog', () => {
+  it('useT updates existing mounted state without remounting or losing the open dialog', async () => {
     function Probe() {
       const translate = useT();
       return createElement('dialog', { open: true }, createElement('input', { defaultValue: 'retained' }), translate('dashboard.title'));
@@ -162,7 +165,7 @@ describe('typed locale parity against committed shipped XML output', () => {
     const dialog = container.querySelector('dialog')!;
     const reload = vi.fn();
     window.addEventListener('beforeunload', reload);
-    act(() => i18n.setLanguage('zh_tw'));
+    await act(async () => { await i18n.setLanguage('zh_tw'); });
     expect(screen.getByText(zh_tw.dashboard.title)).toBeDefined();
     expect(container.querySelector('dialog')).toBe(dialog);
     expect(dialog.open).toBe(true);

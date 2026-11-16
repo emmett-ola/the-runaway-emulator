@@ -1,14 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
 import { i18n, useT } from '../../lib/i18n';
+import { readIdentityCache } from '../../lib/storage/preferences';
+import { logout } from '../../auth';
 
 export const CardGame = () => {
   useT();
   const navigate = useNavigate();
-  const username = sessionStorage.getItem('runawaylog-username') || '';
+  const username = readIdentityCache('username') || '';
   
   const handleLogout = () => {
-    sessionStorage.removeItem('runawaylog-username');
+    logout();
     navigate('/');
     window.location.reload();
   };

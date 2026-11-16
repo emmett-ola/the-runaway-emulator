@@ -6,19 +6,23 @@ import { getTheme, setTheme, type Theme } from '../../darkMode';
 import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../lib/time';
 import { i18n } from '../../lib/i18n';
 import type { SupportedLanguage } from '../../lib/i18n';
-import { getStorageMode, setStorageMode, type StorageMode, loadUserData } from '../../storage';
+import { getStorageMode, setStorageMode, type StorageMode, loadUserData, useAccountSnapshot } from '../../storage';
+import { readRunView } from '../../lib/storage';
+import { logout } from '../../auth';
 import { exportUserData, importUserData, confirmImportedData, type ImportedUserData } from '../../lib/data/transfer';
-import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
+import { getCalendarTheme, setCalendarTheme, readIdentityCache, subscribePreferences } from '../../lib/storage/preferences';
 import { PrintCalendar } from '../print';
-import type { HitLog } from '../../types';
+import type { RunView } from '../../types';
 import '../../ui/SettingsLayout.css';
 
 export const Settings = () => {
   const navigate = useNavigate();
-  const username = sessionStorage.getItem('runawaylog-username') || '';
+  const username = readIdentityCache('username') || '';
+  const account = useAccountSnapshot(username);
+  const [error, setError] = useState('');
   
   const handleLogout = () => {
-    sessionStorage.removeItem('runawaylog-username');
+    logout();
     navigate('/');
     window.location.reload();
   };
@@ -45,7 +49,7 @@ export const Settings = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialog, setImportDialog] = useState<{ show: boolean; data: ImportedUserData | null }>({ show: false, data: null });
   
-  const [printDialog, setPrintDialog] = useState<{ hits: HitLog[]; month: Date } | null>(null);
+  const [printDialog, setPrintDialog] = useState<{ view: RunView; month: Date } | null>(null);
 
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
 
@@ -54,10 +58,8 @@ export const Settings = () => {
   
   // Handle export data
   const handleExport = async () => {
-    const userData = await loadUserData(username);
-    if (userData) {
-      exportUserData(userData);
-    }
+    try { await exportUserData(username); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
   
   // Handle import click
@@ -89,8 +91,8 @@ export const Settings = () => {
     
     try {
       const userData = await loadUserData(username);
-      const mergedData = confirmImportedData(username, importDialog.data, 'merge');
-      const newHitCount = mergedData.hits.length - (userData?.hits.length ?? 0);
+      const mergedData = await confirmImportedData(username, importDialog.data, 'merge');
+      const newHitCount = mergedData.hits.length - (userData?.total ?? 0);
       setImportDialog({ show: false, data: null });
       alert(i18n.t('errors.import_merged', { count: newHitCount }));
       window.location.reload();
@@ -104,7 +106,7 @@ export const Settings = () => {
     if (!importDialog.data || !replaceConfirmed) return;
     
     try {
-      confirmImportedData(username, importDialog.data, 'replace');
+      await confirmImportedData(username, importDialog.data, 'replace');
       setImportDialog({ show: false, data: null });
       alert(i18n.t('errors.import_replaced', { count: importDialog.data.hits.length }));
       window.location.reload();
@@ -120,15 +122,15 @@ export const Settings = () => {
   
   // Handle print calendar
   const handlePrint = async () => {
+    if (!account) { setError('Account not found'); return; }
     const month = new Date();
-    let hits: HitLog[] = [];
     try {
-      const userData = await loadUserData(username);
-      hits = userData?.hits || [];
-    } catch {
-      // A failed load still opens an empty calendar.
+      const view = await readRunView(account.accountId, selectedTimezone, month);
+      setPrintDialog({ view, month });
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     }
-    setPrintDialog({ hits, month });
   };
   
   useEffect(() => {
@@ -139,39 +141,48 @@ export const Settings = () => {
     return () => unsubscribe();
   }, []);
   
+  useEffect(() => subscribePreferences(() => {
+    setSelectedTheme(getCalendarTheme());
+    setDarkMode(getTheme());
+    setSelectedTimezone(getSavedTimezone());
+    setSelectedLanguage(i18n.getLanguage());
+    setSelectedStorageMode(getStorageMode());
+  }), []);
+
+  const savePreference = async (command: () => Promise<unknown>, onSaved?: () => void) => {
+    setError('');
+    try { await command(); onSaved?.(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  };
+
   const handleStorageModeChange = (mode: StorageMode) => {
-    if (mode !== 'local') return;
-    setSelectedStorageMode(mode);
-    setStorageMode(mode);
-    // Refresh page to apply storage mode changes
-    window.location.reload();
+    if (mode !== 'local' || mode === selectedStorageMode) return;
+    void savePreference(() => setStorageMode(mode), () => setSelectedStorageMode(mode));
   };
-  
+
   const handleThemeChange = (themeId: string) => {
-    setSelectedTheme(themeId);
-    setCalendarTheme(themeId);
-    const theme = getThemeById(themeId);
-    applyTheme(theme);
+    void savePreference(() => setCalendarTheme(themeId), () => {
+      setSelectedTheme(themeId);
+      applyTheme(getThemeById(themeId));
+    });
   };
-  
+
   const handleDarkModeToggle = () => {
     const newMode = darkMode === 'light' ? 'dark' : 'light';
-    setDarkMode(newMode);
-    setTheme(newMode);
+    void savePreference(() => setTheme(newMode), () => setDarkMode(newMode));
   };
-  
+
   const handleTimezoneChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newTimezone = e.target.value;
-    setSelectedTimezone(newTimezone);
-    saveTimezone(newTimezone);
-    // Refresh page to apply timezone changes
-    window.location.reload();
+    void savePreference(() => saveTimezone(newTimezone), () => {
+      setSelectedTimezone(newTimezone);
+      setPrintDialog(null);
+    });
   };
-  
+
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLanguage = e.target.value as SupportedLanguage;
-    setSelectedLanguage(newLanguage);
-    i18n.setLanguage(newLanguage);
+    void savePreference(() => i18n.setLanguage(newLanguage), () => setSelectedLanguage(newLanguage));
   };
   
   
@@ -180,6 +191,7 @@ export const Settings = () => {
       <div className="settings-page">
         <div className="settings-container">
           <h1 className="settings-title">{i18n.t('settings.title')}</h1>
+          {error && <p role="alert">{error}</p>}
           
           <div className="settings-grid">
             {/* Appearance Settings */}
@@ -384,10 +396,11 @@ export const Settings = () => {
       </div>
       {printDialog && (
         <PrintCalendar
-          hits={printDialog.hits}
+          dayCounts={printDialog.view.dayCounts}
+          total={printDialog.view.total}
           username={username}
           currentMonth={printDialog.month}
-          timezone={selectedTimezone}
+          timezone={printDialog.view.timezone}
           onClose={() => setPrintDialog(null)}
         />
       )}

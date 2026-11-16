@@ -3,13 +3,13 @@ import { colorThemes, getThemeById, applyTheme } from '../../themes';
 import { getTheme, setTheme, type Theme } from '../../darkMode';
 import { getTimezones, getSavedTimezone, saveTimezone, getTimezoneDisplayName } from '../../lib/time';
 import { i18n, type SupportedLanguage } from '../../lib/i18n';
-import { getCalendarTheme, setCalendarTheme } from '../../lib/storage/preferences';
+import { getCalendarTheme, setCalendarTheme, subscribePreferences } from '../../lib/storage/preferences';
 import './SettingsMenu.css';
 
 interface SettingsMenuProps {
-  onExport: () => void;
-  onImport: () => void;
-  onPrint: () => void;
+  onExport: () => void | Promise<void>;
+  onImport: () => void | Promise<void>;
+  onPrint: () => void | Promise<void>;
   onTimezoneChange?: () => void;
 }
 
@@ -20,6 +20,8 @@ export const SettingsMenu = ({ onExport, onImport, onPrint, onTimezoneChange }: 
   const [selectedTimezone, setSelectedTimezone] = useState<string>(() => getSavedTimezone());
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>(() => i18n.getLanguage());
   const menuRef = useRef<HTMLDivElement>(null);
+  const pending = useRef(false);
+  const [error, setError] = useState('');
   const timezones = getTimezones();
   
   // Handle language change
@@ -30,9 +32,15 @@ export const SettingsMenu = ({ onExport, onImport, onPrint, onTimezoneChange }: 
   }, []);
   
   const handleLanguageChange = (language: SupportedLanguage) => {
-    setSelectedLanguage(language);
-    i18n.setLanguage(language);
+    void savePreference(() => i18n.setLanguage(language), () => setSelectedLanguage(language));
   };
+
+  useEffect(() => subscribePreferences(() => {
+    setSelectedTheme(getCalendarTheme());
+    setDarkMode(getTheme());
+    setSelectedTimezone(getSavedTimezone());
+    setSelectedLanguage(i18n.getLanguage());
+  }), []);
 
   useEffect(() => {
     const theme = getThemeById(selectedTheme);
@@ -63,32 +71,39 @@ export const SettingsMenu = ({ onExport, onImport, onPrint, onTimezoneChange }: 
     };
   }, [isOpen]);
 
+  const savePreference = async (command: () => Promise<unknown>, onSaved: () => void) => {
+    if (pending.current) return;
+    pending.current = true;
+    setError('');
+    try { await command(); onSaved(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { pending.current = false; }
+  };
+
   const handleThemeChange = (themeId: string) => {
-    setSelectedTheme(themeId);
-    setCalendarTheme(themeId);
+    void savePreference(() => setCalendarTheme(themeId), () => setSelectedTheme(themeId));
   };
 
   const handleDarkModeToggle = () => {
     const newTheme = darkMode === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    setDarkMode(newTheme);
+    void savePreference(() => setTheme(newTheme), () => setDarkMode(newTheme));
   };
 
   const handleTimezoneChange = (timezone: string) => {
-    setSelectedTimezone(timezone);
-    saveTimezone(timezone);
-    if (onTimezoneChange) {
-      onTimezoneChange();
-    }
+    void savePreference(() => saveTimezone(timezone), () => {
+      setSelectedTimezone(timezone);
+      onTimezoneChange?.();
+    });
   };
 
-  const handleMenuAction = (action: () => void) => {
-    action();
-    setIsOpen(false);
+  const handleMenuAction = async (action: () => void | Promise<void>) => {
+    try { await action(); setIsOpen(false); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
 
   return (
     <div className="settings-menu-container" ref={menuRef}>
+      {error && <p role="alert">{error}</p>}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="settings-button"

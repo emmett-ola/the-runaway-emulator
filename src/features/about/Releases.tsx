@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../ui/Layout';
 import { i18n, useT } from '../../lib/i18n';
+import { readIdentityCache } from '../../lib/storage/preferences';
+import { logout as clearIdentity } from '../../auth';
 import { formatLongDate } from '../../lib/time';
 
 const entries = [
@@ -11,9 +13,9 @@ const entries = [
 export function Releases() {
   useT();
   const navigate = useNavigate();
-  const username = sessionStorage.getItem('runawaylog-username') || '';
+  const username = readIdentityCache('username') || '';
   const logout = () => {
-    sessionStorage.removeItem('runawaylog-username');
+    clearIdentity();
     navigate('/');
     window.location.reload();
   };
