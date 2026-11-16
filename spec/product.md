@@ -1,5 +1,7 @@
 # RUN — product surfaces and per-surface acceptance
 
+Identity update: the historical “empty password always enters” rule ends when ADR 0008 ships; local password identity shipped in 2.0.0 (see [ADR 0008](decisions/0008-local-password-identity.md)).
+
 Owner document for user-visible facts (see `README.md`). Written by **Avery**
 (product role) on 2026-11-12 for the option-B rebuild, **adopted by Maia** as the
 authority for this rebuild, with the three open questions ruled on at the end.
@@ -70,7 +72,7 @@ Each item is a property a replacement must satisfy. None is a number to be fitte
 - S6 Replace-import discards data only after an explicit confirmation in the import dialog.
 
 **S6 Profile**
-- P1 Member-since derives from one persisted date and is stable across mounts, reloads and a day boundary (D-12 open; invariant unmet today).
+- P1 Member-since derives from one persisted date and is stable across mounts, reloads and a day boundary (D-12 open; invariant unmet today). [Status: D-12 closed in 1.0.2; record: `spec/versions.md`.]
 - P2 The stored hit total equals the count shown on S1.
 - P3 A saved email persists and is shown after reload; an empty email is a permitted state.
 - P4 A record missing its registration date is repaired once and written back, not re-synthesised per mount.
@@ -81,11 +83,11 @@ Each item is a property a replacement must satisfy. None is a number to be fitte
 **Cross-surface**
 - X1 Every user-visible string exists in `en_us`, `zh_cn` and `zh_tw`; no missing key renders as its path.
 - X2 An unknown path redirects to `/` with no flash of a broken page.
-- X3 A render error in one surface does not blank the application (D-4 open; invariant unmet today).
+- X3 A render error in one surface does not blank the application (D-4 open; invariant unmet today). [Status: D-4 closed in 1.2.0; record: `spec/versions.md`.]
 
 ## 3. Product decisions the rebuild must not silently change
 
-- **PD-1 Demo identity.** A username is the whole account; an empty password always enters; there is no server-side account. The current password handling is a demo affordance, not authentication, and must not be read as a security boundary by anyone building on it.
+- **PD-1 Demo identity.** A username is the whole account; an empty password always enters; there is no server-side account. The current password handling is a demo affordance, not authentication, and must not be read as a security boundary by anyone building on it. [Status: historical demo-identity decision superseded by local password identity in 2.0.0; see ADR 0008 (`spec/decisions/0008-local-password-identity.md`).]
 - **PD-2 Device-local storage only.** The record lives in this browser on this device. Cloud storage is a labelled, disabled placeholder; it is not a queued feature.
 - **PD-3 Scope of persistence.** Identity is per browser session; data is per device. A new session asks again for the username, and finds the hits intact.
 - **PD-4 Scene frequency.** The post-run scene shows once per page session and is never persisted; it is not "once per user" or "once per day".
@@ -95,16 +97,16 @@ Each item is a property a replacement must satisfy. None is a number to be fitte
 - **PD-8 Games scope.** Fork-in-the-road and the card album have behaviour; slot machine, achievements and daily challenges are unbuilt placeholders with no commitment behind them.
 
 **Defects, not decisions** (these are regressions or accidents; fixing them is not a scope change):
-- DF-1 `/releases` is unreachable by navigation — no link exists anywhere in the app.
-- DF-2 `src/pages/Storage.tsx` is unrouted and holds a third `window.print()`; it is dead code, and any rebuild that ports it would resurrect a defect.
-- DF-3 `/releases` copy is hardcoded English outside i18n, so a `zh_cn` user reads English. Inconsistent with PD-5; reads as an oversight, not a choice.
-- DF-4 `/games/cards` returns to `/` rather than `/games`; minor, and probably accidental.
-- DF-5 D-12 (registration date re-synthesised per mount) and D-4 (no error boundary) remain open in the defect register; P1 and X3 are written so that closing them cannot be argued away.
+- DF-1 `/releases` is unreachable by navigation — no link exists anywhere in the app. [Status: closed in 1.2.0; record: `spec/versions.md`.]
+- DF-2 `src/pages/Storage.tsx` is unrouted and holds a third `window.print()`; it is dead code, and any rebuild that ports it would resurrect a defect. [Status: closed with the 1.2.0 legacy-tree cutover; record: `spec/versions.md`.]
+- DF-3 `/releases` copy is hardcoded English outside i18n, so a `zh_cn` user reads English. Inconsistent with PD-5; reads as an oversight, not a choice. [Status: closed in 1.2.0; record: `spec/versions.md`.]
+- DF-4 `/games/cards` returns to `/` rather than `/games`; minor, and probably accidental. [Status: closed in 1.2.0; record: `spec/versions.md`.]
+- DF-5 D-12 (registration date re-synthesised per mount) and D-4 (no error boundary) remain open in the defect register; P1 and X3 are written so that closing them cannot be argued away. [Status: D-12 closed in 1.0.2 and D-4 in 1.2.0; record: `spec/versions.md`.]
 
 ## 4. Open questions
 
 - **Q1 — Is `/releases` a surface to keep?** Recommended default: keep the route, give it no navigation entry, and require RS1–RS2 and DF-3 (proper localization) as its acceptance. It is a small page, but it is currently a public URL that a rebuild could silently drop.
-- **Q2 — Is the passwordless bypass a decision or a defect?** Recommended default: a decision. Keep it, keep it labelled as demo identity, and do not add password enforcement during the rebuild; changing it is a separate, owner-visible change.
+- **Q2 — Is the passwordless bypass a decision or a defect?** Recommended default: a decision. Keep it, keep it labelled as demo identity, and do not add password enforcement during the rebuild; changing it is a separate, owner-visible change. [Status: historical demo-identity decision superseded by local password identity in 2.0.0; see ADR 0008 (`spec/decisions/0008-local-password-identity.md`).]
 - **Q3 — Should identity persist beyond the browser session?** Today it does not, and I cannot tell whether that is deliberate. Recommended default: keep session-scoped identity (PD-3) for the rebuild, and treat "stay signed in" as a new feature if it is ever wanted.
 
 ## 5. Rulings on the open questions (Maia, 2026-11-12)
@@ -115,7 +117,7 @@ Each item is a property a replacement must satisfy. None is a number to be fitte
   rots; a link from About costs one line and makes RS1–RS2 checkable by a user.
 - **Q2 — The passwordless bypass is a decision, not a defect.** It stays, it is
   documented here as demo identity, and no one may present it as authentication.
-  Enforcing passwords would be a product change with its own round.
+  Enforcing passwords would be a product change with its own round. [Status: historical demo-identity decision superseded by local password identity in 2.0.0; see ADR 0008 (`spec/decisions/0008-local-password-identity.md`).]
 - **Q3 — Identity stays session-scoped.** PD-3 stands. "Stay signed in" is a new
   feature, not a rebuild item.
 

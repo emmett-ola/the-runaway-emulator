@@ -57,7 +57,7 @@ src/
 | Module | Target | Fails when |
 | --- | --- | --- |
 | any single component | ≤ 150 lines | a component both renders a surface and owns persistence or timing logic |
-| `lib/storage` | ADR 0006 §10: facade ≤120 lines; responsibility files ≤200–250; runtime aggregate ≤1,500 excluding pure model/migration/test code | it grows per-feature special cases instead of bounded responsibilities |
+| `lib/storage` | ADR 0006 §10: facade ≤120 lines; responsibility files ≤200–250; current non-test runtime `src/lib/storage/` + `src/lib/identity/` aggregate ≤1,900 excluding pure model/migration/test code; identity + credential handling ≤300 | it grows per-feature special cases instead of bounded responsibilities |
 | `lib/data` transfer | ADR 0006 §10: facade ≤150 lines; archive/validation each ≤250; runtime aggregate ≤650 | transfer responsibilities exceed the approved bounded aggregate |
 | a feature directory | ≤ 6 files | it starts owning another feature's state |
 
