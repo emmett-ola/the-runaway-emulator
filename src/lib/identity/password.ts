@@ -15,12 +15,15 @@ export class LocalAuthError extends Error {
 const fail = (code: string): never => { throw new LocalAuthError(code); };
 const invalidUnicode = (value: string): boolean => /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(value);
 export const validVerificationInput = (password: string): boolean => password.length <= 1024 && !invalidUnicode(password) && new TextEncoder().encode(password).byteLength <= 1024;
-export const validatePassword = (password: string, confirmation = password): void => {
-  // Bound input before counting or encoding. No normalization, trimming or truncation.
+export const validatePassword = (password: string, handle: string, confirmation = password): void => {
+  // Bound input before counting or encoding. Preserve exact password bytes for the KDF.
   if (password.length > 1024) fail('password_too_long');
   if (invalidUnicode(password) || invalidUnicode(confirmation)) fail('password_invalid_unicode');
   if (new TextEncoder().encode(password).byteLength > 1024) fail('password_too_long');
-  if (Array.from(password).length < 12) fail('password_too_short');
+  if (Array.from(password).length < 6) fail('password_too_short');
+  const folded = password.trim().toLowerCase();
+  if (folded === handle.trim().toLowerCase()) fail('password_same_as_handle');
+  if (['123456', 'password', 'qwerty', '111111', '123123'].includes(folded)) fail('password_too_common');
   if (password !== confirmation) fail('confirmation_mismatch');
 };
 export const toBase64 = (bytes: Uint8Array): string => btoa(String.fromCharCode(...bytes));

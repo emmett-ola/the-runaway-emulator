@@ -67,7 +67,7 @@ export const login = async (username: string, password: string, expected?: Local
   });
 };
 export const setupLocalPassword = async (identity: LocalIdentity, password: string, confirmation: string): Promise<AccountSnapshot> => {
-  validatePassword(password, confirmation);
+  validatePassword(password, identity.username, confirmation);
   const current = await lookupLocalIdentity(identity.username);
   if (current.accountId !== identity.accountId || current.step !== 'setup' || identity.step !== 'setup') throw new LocalAuthError('identity_changed');
   const credential = await createCredential(password);
@@ -78,7 +78,7 @@ export const setupLocalPassword = async (identity: LocalIdentity, password: stri
 };
 /** Registration is explicit password setup, never passwordless account entry. */
 export const register = async (username: string, password: string, email?: string): Promise<AccountSnapshot> => {
-  validatePassword(password);
+  validatePassword(password, username);
   const identity = await lookupLocalIdentity(username);
   if (identity.accountId) throw new LocalAuthError('identity_changed');
   const receipt = await createPasswordAccount(username, await createCredential(password), email ? { email } : {});

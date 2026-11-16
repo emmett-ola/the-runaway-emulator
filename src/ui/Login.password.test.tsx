@@ -8,7 +8,7 @@ import { appendHit, createAccount, readCredential, readFullRecord, readRecord } 
 import { getSessionUsername } from '../app/session';
 
 vi.mock('animejs', () => ({ animate: vi.fn() }));
-const synthetic = () => `SYNTHETIC-UI-${crypto.randomUUID()}`;
+const synthetic = (): string => `SYNTHETIC-UI-${crypto.randomUUID()}`;
 const next = async (username: string) => {
   fireEvent.change(screen.getByLabelText(i18n.t('login.username')), { target: { value: username } });
   fireEvent.click(screen.getByRole('button', { name: i18n.t('login.next') }));
@@ -68,7 +68,9 @@ describe('username-first local password gate', () => {
     await waitFor(() => expect(onLogin).toHaveBeenCalledOnce());
   });
   it.each([
-    ['password_too_short', () => 'x'.repeat(11), (p: string) => p],
+    ['password_too_short', () => 'x'.repeat(5), (p: string) => p],
+    ['password_same_as_handle', (): string => ' POLICY-UI ', (p: string): string => p],
+    ['password_too_common', (): string => 'PaSsWoRd', (p: string): string => p],
     ['password_too_long', () => String.fromCodePoint(0x754c).repeat(342), (p: string) => p],
     ['password_invalid_unicode', () => 'x'.repeat(12) + '\ud800', (p: string) => p],
     ['confirmation_mismatch', synthetic, synthetic],
@@ -112,7 +114,7 @@ describe('username-first local password gate', () => {
   });
   it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('localizes every error, setup rule and irreversible-loss notice in %s', async locale => {
     await i18n.setLanguage(locale);
-    const codes = ['username_required', 'password_too_short', 'password_too_long', 'password_invalid_unicode', 'confirmation_mismatch', 'invalid_credentials', 'cooldown', 'credential_invalid', 'identity_changed', 'setup_required', 'storage_failed'];
+    const codes = ['username_required', 'password_too_short', 'password_too_long', 'password_invalid_unicode', 'password_same_as_handle', 'password_too_common', 'confirmation_mismatch', 'invalid_credentials', 'cooldown', 'credential_invalid', 'identity_changed', 'setup_required', 'storage_failed'];
     const marker = synthetic();
     for (const code of codes) {
       const view = render(<LoginError reason={{ code, message: marker }} />);

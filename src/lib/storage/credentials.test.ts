@@ -3,7 +3,7 @@ import { login, logout, lookupLocalIdentity, register, setupLocalPassword } from
 import { getSessionUsername } from '../../app/session';
 import { appendHit, createAccount, getStorageState, readCredential, readFullRecord, readRecord, readStore, writeAccountCredential } from './index';
 import { completed, getGeneration, openDatabase, readCurrent, request, transaction } from './idb';
-import { createCredential, PASSWORD_ALGORITHM, PASSWORD_ITERATIONS, toBase64, validateCredential, validatePassword } from '../identity/password';
+import { createCredential, PASSWORD_ALGORITHM, PASSWORD_ITERATIONS, toBase64, validateCredential, validatePassword, verifyPassword } from '../identity/password';
 import { createExportDocument, importUserData, confirmImportedData } from '../data/transfer';
 import { unzipSync } from 'fflate';
 
@@ -48,7 +48,9 @@ describe('local password identity owning layer', () => {
     expect(credential.algorithm).toBe(PASSWORD_ALGORITHM);
   });
   it.each([
-    ['password_too_short', () => 'x'.repeat(11), (p: string) => p],
+    ['password_too_short', (): string => 'x'.repeat(5), (p: string): string => p],
+    ['password_same_as_handle', (): string => ' POLICY ', (p: string): string => p],
+    ['password_too_common', (): string => 'PaSsWoRd', (p: string): string => p],
     ['password_too_long', () => '界'.repeat(342), (p: string) => p],
     ['password_invalid_unicode', () => 'x'.repeat(12) + '\ud800', (p: string) => p],
     ['password_invalid_unicode', () => 'x'.repeat(12), () => '\udc00'],
@@ -61,16 +63,57 @@ describe('local password identity owning layer', () => {
     expect(await readCurrent()).toBeNull();
   });
   it('counts Unicode code points and exact UTF-8 byte limits without normalization, truncation or composition', async () => {
-    expect(() => validatePassword('😀'.repeat(12))).not.toThrow();
-    expect(() => validatePassword('a'.repeat(1024))).not.toThrow();
-    expect(() => validatePassword('😀'.repeat(256))).not.toThrow();
-    expect(() => validatePassword('a'.repeat(1025))).toThrow();
+    expect(() => validatePassword('😀'.repeat(6), 'unicode')).not.toThrow();
+    expect(() => validatePassword('😀'.repeat(5), 'unicode')).toThrow('password_too_short');
+    expect(() => validatePassword('a'.repeat(1024), 'unicode')).not.toThrow();
+    expect(() => validatePassword('😀'.repeat(256), 'unicode')).not.toThrow();
+    expect(() => validatePassword('a'.repeat(1025), 'unicode')).toThrow('password_too_long');
     const password = '  ' + 'é'.repeat(12) + '  ';
     await setup('exact', password);
     logout();
     await expect(login('exact', password.normalize('NFC'))).rejects.toMatchObject({ code: 'invalid_credentials' });
     await expect(login('exact', password.trim())).rejects.toMatchObject({ code: 'invalid_credentials' });
     expect((await login('exact', password)).username).toBe('exact');
+  });
+  it('accepts six code points through registration and credentialless setup', async () => {
+    const password = 'x'.repeat(6);
+    expect((await register('minimum-new', password)).username).toBe('minimum-new');
+    logout();
+    const id = (await createAccount('minimum-old')).accountId!;
+    expect((await setup('minimum-old', password)).account.accountId).toBe(id);
+    logout();
+    expect((await login('minimum-old', password)).accountId).toBe(id);
+  });
+  it('rejects trimmed case-insensitive handle equality before commonness and confirmation', () => {
+    expect(() => validatePassword('  SyNtHeTiC  ', ' synthetic ')).toThrow('password_same_as_handle');
+    expect(() => validatePassword('PaSsWoRd', ' PASSWORD ', 'different')).toThrow('password_same_as_handle');
+    expect(() => validatePassword('x'.repeat(5), 'x'.repeat(5))).toThrow('password_too_short');
+  });
+  it.each(['numeric sequence', 'dictionary word', 'keyboard sequence', 'repeated digit', 'repeated sequence'])('rejects every case and padded variant of common entry %s', label => {
+    const entries = { 'numeric sequence': '123456', 'dictionary word': 'password', 'keyboard sequence': 'qwerty', 'repeated digit': '111111', 'repeated sequence': '123123' };
+    const word = entries[label as keyof typeof entries];
+    for (const variant of [word, word.toUpperCase(), word.slice(0, 1).toUpperCase() + word.slice(1), ` ${word.toUpperCase()} `]) {
+      expect(() => validatePassword(variant, 'unrelated-handle')).toThrow('password_too_common');
+    }
+  });
+  it('enforces the creation policy on registration and predecessor setup without publishing or entering', async () => {
+    const id = (await createAccount('synthetic-handle')).accountId!;
+    for (const password of ['x'.repeat(5), '  SYNTHETIC-HANDLE ', 'PaSsWoRd']) {
+      const code = password.length === 5 ? 'password_too_short' : password.trim().toLowerCase() === 'synthetic-handle' ? 'password_same_as_handle' : 'password_too_common';
+      await expect(register('new-policy', password === '  SYNTHETIC-HANDLE ' ? ' NEW-POLICY ' : password)).rejects.toMatchObject({ code });
+      await expect(setupLocalPassword(await lookupLocalIdentity('synthetic-handle'), password, password)).rejects.toMatchObject({ code });
+      expect(await readRecord('new-policy')).toBeNull();
+      expect(await readCredential(id)).toBeNull();
+      expect(getSessionUsername()).toBeNull();
+    }
+  });
+  it.each(['below minimum', 'common', 'same handle'])('verifies historical passwords outside creation policy without a handle argument: %s', async kind => {
+    const password = kind === 'below minimum' ? 'x'.repeat(5) : kind === 'common' ? 'PaSsWoRd' : 'legacy-handle';
+    const id = (await createAccount('legacy-handle')).accountId!;
+    const credential = await createCredential(password);
+    await putCredential(id, credential);
+    expect(await verifyPassword(password, credential)).toBe(true);
+    expect((await login('legacy-handle', password)).accountId).toBe(id);
   });
   it('preserves predecessor identity, registration and data through absent-record password setup', async () => {
     const id = (await createAccount('predecessor')).accountId!;

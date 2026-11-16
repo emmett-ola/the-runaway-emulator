@@ -192,6 +192,8 @@ Required implementation file scope:
 
 Approved design alignment exception to [architecture.md](../architecture.md): storage facade ≤120 lines, responsibility files ≤200–250, storage runtime aggregate ≤1,750 excluding pure model/migration/test code; transfer facade ≤150, archive/validation each ≤250 and aggregate ≤650. Components target ≤150 lines, feature directory ≤6 files. Tests are not compressed to meet runtime budgets. Review justified overruns, do not hide feature-specific logic in storage. architecture.md alignment update belongs to implementation scope. The storage runtime aggregate ceiling is a one-time increase approved by Maia on 2026-11-16 after the measured 1,696 lines; no further increase is approved without splitting a responsibility into its own module.
 
+2026-11-16 owner-authorized rebase: non-test runtime `src/lib/storage/` + `src/lib/identity/` ≤1900 lines; identity + credential handling (including auth orchestration and inline persistence integration) ≤300 lines; no further increase is approved without splitting a responsibility into its own module.
+
 app/features → public storage domain interfaces; lib/data → storage transfer/file interface and pure codecs; storage → models/pure helpers/platform APIs. lib never imports features/app; features never deep-import another feature. lib/storage alone touches browser persistence APIs; transfer/components cannot open IDB or construct keys. Root compatibility facade points inward without cycle. Keep projection helpers independent of boot initialization. Add dependency/API-ownership checks. Canonical shared code and future server layout are owned by ADR 0007.
 
 ## 11. Test plan before independent implementation acceptance

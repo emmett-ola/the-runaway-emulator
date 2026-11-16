@@ -5,7 +5,7 @@ import { i18n, useT } from '../lib/i18n';
 
 const errorCodes = new Set([
   'username_required', 'password_too_short', 'password_too_long', 'password_invalid_unicode',
-  'confirmation_mismatch', 'invalid_credentials', 'cooldown', 'credential_invalid',
+  'password_same_as_handle', 'password_too_common', 'confirmation_mismatch', 'invalid_credentials', 'cooldown', 'credential_invalid',
   'identity_changed', 'setup_required', 'storage_failed',
 ]);
 export function LoginError({ reason }: { reason: unknown }) {
