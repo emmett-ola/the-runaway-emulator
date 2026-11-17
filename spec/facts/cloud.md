@@ -1,18 +1,18 @@
-# ADR 0007: Canonical accounts, SMTP-free authentication and pre-connect gate
+# Canonical cloud model
 
-Status: accepted — the owner accepted the design on 2026-11-16. Earlier drafts are not reproduced.
-Author: Soren (development)
-Baseline: `efd6544b5dbb20f951afe6206af0664f8195affb`
-Companion: [ADR 0006](0006-multi-file-store.md)
-Schema: [postgres-schema.sql](../cloud/postgres-schema.sql), accepted design DDL; application requires the migration runner.
+Design accepted 2026-11-16 and **not implemented**: cloud storage stays disabled until the
+owner opens it. This file is the current truth for the model to build against.
+
+Companion: [storage.md](storage.md)
+Schema: [postgres-schema.sql](../contract/postgres-schema.sql), accepted design DDL; application requires the migration runner.
 
 ## 1. Decision and ownership
 
-One canonical logical model has two storage materializations: IndexedDB virtual files and PostgreSQL rows. Zip is an interchange projection. Adapters preserve ids/order/supported values rather than inventing different domain models. [ADR 0006](0006-multi-file-store.md) owns local paths/chunks/publication/recovery/transfer/envelope and SPA integration. This ADR owns canonical types/codec, principal mapping, the cloud API, authentication, switching and operations. Design acceptance does not prove an implementation or deployed service.
+One canonical logical model has two storage materializations: IndexedDB virtual files and PostgreSQL rows. Zip is an interchange projection. Adapters preserve ids/order/supported values rather than inventing different domain models. [storage.md](storage.md) owns local paths/chunks/publication/recovery/transfer/envelope and SPA integration. This ADR owns canonical types/codec, principal mapping, the cloud API, authentication, switching and operations. Design acceptance does not prove an implementation or deployed service.
 
 Plain PostgreSQL sits behind exactly one small HTTP API we own. The same API/schema/container can move between a VPS, managed PostgreSQL and a home server without domain rewrite. PostgreSQL is not MySQL; jsonb, indexes and transactions provide persistence. A compose deployment runs API, database and reverse proxy. We own TLS, backups, patching, uptime and secrets; the benefit is portability, no platform ceremony and control of our data.
 
-Two modes are first-class: local has single-device IDB authority; cloud has server authority and IDB cache, same account across devices, owner-only access. Cloud offline is viewing only; never silently switch into another writable history. Local mode is not deprecated. Retirement needs a separate owner decision, notice window, independently accepted cloud and verified export, without an invented date. v2.0.0 scope is defined by ADR 0006; cloud implementation follows that release. Product policy changes for cloud accounts/remote persistence must be adopted before activation.
+Two modes are first-class: local has single-device IDB authority; cloud has server authority and IDB cache, same account across devices, owner-only access. Cloud offline is viewing only; never silently switch into another writable history. Local mode is not deprecated. Retirement needs a separate owner decision, notice window, independently accepted cloud and verified export, without an invented date. v2.0.0 scope is defined by `storage.md`; cloud implementation follows that release. Product policy changes for cloud accounts/remote persistence must be adopted before activation.
 
 ## 2. Canonical model and stable identity
 
@@ -34,7 +34,7 @@ Installation directory/device preferences, binding/gate/progress/pins, recovery 
 
 ### AccountId and authUserId
 
-Local accountId L uses ADR 0006's UUID layout. Server authUserId P is the API-created principal UUID, stored as accounts.id; accounts.logical_id preserves L. All owned SQL FKs use P. One repository principal resolver maps authenticated session P↔server-owned L; features use L, never raw SQL ownership selectors. A second device obtains L through GET /account after authentication; P need not equal L.
+Local accountId L uses `storage.md`'s UUID layout. Server authUserId P is the API-created principal UUID, stored as accounts.id; accounts.logical_id preserves L. All owned SQL FKs use P. One repository principal resolver maps authenticated session P↔server-owned L; features use L, never raw SQL ownership selectors. A second device obtains L through GET /account after authentication; P need not equal L.
 
 No endpoint accepts account_id/accountId/logical_id/authUserId/principalId as a caller-selected SQL predicate, URL selector or authorization proof. All queries derive P from the validated bearer and include it internally. Registration allocates P and provisional L server-side, no caller id. A gated first connection may carry source L only inside the canonical tree as namespace metadata: API validates UUID/uniqueness/gate-bound source, derives every SQL account_id from session P, and permits provisional→source logical_id binding only before first published cloud tree. Published L cannot silently change; mismatch blocks connection. This metadata exception preserves canonical local paths without granting access to another principal. Local L never moves; exported namespace metadata is not an account credential.
 
@@ -42,7 +42,7 @@ No endpoint accepts account_id/accountId/logical_id/authUserId/principalId as a 
 
 Codec: recursively sort object keys by Unicode code point; preserve arrays; no insignificant whitespace; UTF-8; finite IEEE-754 numbers using ECMAScript JSON rendering, normalize -0 to 0; versions decimal strings; no string normalization. Explicit presence metadata handles absence. Reject duplicate keys, NaN/Infinity, unpaired surrogates, embedded NUL and incompatible jsonb values before connection, preserving diagnosed local source rather than dropping it.
 
-API and SPA use one shared codec. jsonb stores values, not original bytes; reconstruct canonical envelopes before SHA/length, never substitute jsonb::text. Archive raw-byte verification is owned by ADR 0006; subsequent emitted canonical files get new hashes and preserved source provenance. Shared pure selectors derive index from chunks; no analytics service.
+API and SPA use one shared codec. jsonb stores values, not original bytes; reconstruct canonical envelopes before SHA/length, never substitute jsonb::text. Archive raw-byte verification is owned by `storage.md`; subsequent emitted canonical files get new hashes and preserved source provenance. Shared pure selectors derive index from chunks; no analytics service.
 
 Manifest reserves `auth: {algorithm:null,keyId:null,signature:null}`. Exact full bytes produce integrity digest; future signable digest omits auth to avoid recursion. SHA detects corruption, not operator tampering. Client-side signature/trust/password-derived signing/key recovery is a separate later security decision. Password hashing/TLS do not supply encryption, signatures or operator-proof storage.
 
@@ -75,7 +75,7 @@ Gate states: not-started | checking | blocked-profile | blocked-handle | blocked
 - blocked-profile: missing/malformed account.json/profile.json, UUID/registration/schema or absent/invalid/reserved handle. Empty profile payload and absent email valid; optional email stays unverified. User fixes base first.
 - blocked-handle: authenticated /connect/check or guarded rename finds another account, including tombstone, owns handle. Rename locally and recheck; own handle allowed, uniqueness enforced transactionally.
 - blocked-store: unreadable current, unresolved quarantine/conflict, index/hash/integrity failure. Recover/resolve first.
-- blocked-envelope: outside [ADR 0006 section 7](0006-multi-file-store.md#7-import-pipeline-and-supported-envelope), chunk cap or codec/jsonb compatibility. Preserve source, no truncation.
+- blocked-envelope: outside [`storage.md` section 7](storage.md#7-import-pipeline-and-supported-envelope), chunk cap or codec/jsonb compatibility. Preserve source, no truncation.
 - blocked-identity: source L bound elsewhere, published remote L differs, binding mismatch or ownership selector. Only explicit provisional binding from section 2 is permitted.
 - blocked-auth: absent/expired/revoked session, incomplete server account/password or incompatible/unaccepted API/schema implementation.
 - retryable-error: unreachable backend, throttle, missing schema/health preparation or uncertain outcome; cached availability insufficient.
@@ -89,7 +89,7 @@ Switch phases: prepared | publishing | committed-unverified | verified | confirm
 
 ### Mechanical mapping
 
-Use ADR 0006's paths; L denotes canonical id and P session-derived principal.
+Use `storage.md`'s paths; L denotes canonical id and P session-derived principal.
 
 | Logical material | PostgreSQL mapping |
 | --- | --- |
@@ -106,7 +106,7 @@ Use ADR 0006's paths; L denotes canonical id and P session-derived principal.
 
 ### HTTP contract
 
-One same-origin service under /api behind TLS, paths below relative except /health. JSON version 1, Content-Type application/json, decimal-string versions. Success `{data:...,requestId:<opaque>}`. Reject unknown ownership selectors, parameterize all SQL. Account-bound cursors/range parameters are not owner selectors. Full publication uses bounded disk staging and ≤256 MiB canonical uncompressed body plus actual archive preflight from ADR 0006; validate every supported cap before commit, measure resource capacity before release.
+One same-origin service under /api behind TLS, paths below relative except /health. JSON version 1, Content-Type application/json, decimal-string versions. Success `{data:...,requestId:<opaque>}`. Reject unknown ownership selectors, parameterize all SQL. Account-bound cursors/range parameters are not owner selectors. Full publication uses bounded disk staging and ≤256 MiB canonical uncompressed body plus actual archive preflight from `storage.md`; validate every supported cap before commit, measure resource capacity before release.
 
 Exact error shape (keys always present):
 
@@ -148,11 +148,11 @@ Stale writes return 409 current revision and changed partitions/modules since ba
 
 Local→cloud publishes whole gated account tree in one transaction and result record. Server publishing phase is inside that transaction; committed-unverified becomes visible on commit. Read back consistent revision/digest/count/ids/at/modules; restart readback on movement. Server operation confirmation and local IDB mode flip are separate atomic steps reconciled after restart, not a cross-system transaction. Provisional binding uses section 2, local source stays intact. Costs are full upload/readback, duplicate source/cache/server space, auth/handle/source/revision races, quota/request/transaction limits and lost acknowledgement. If one-transaction supported envelope cannot be met, block/report rather than partially publish or silently lower limits.
 
-Cloud→local uses verified cloud export at one revision and ADR 0006's explicit zip import, preserving target metadata and hit ids/at. Different source L remains provenance and chunk ownership rebinds through codec. Revision-bound paged export restarts on movement rather than mixing snapshots; no credential adoption. In cloud mode cache GC retains verified working set, pins and in-flight/conflict candidate needed for explicit review, not a permanent full history. It never erases separately retained local source. Browser storage is not permanent.
+Cloud→local uses verified cloud export at one revision and `storage.md`'s explicit zip import, preserving target metadata and hit ids/at. Different source L remains provenance and chunk ownership rebinds through codec. Revision-bound paged export restarts on movement rather than mixing snapshots; no credential adoption. In cloud mode cache GC retains verified working set, pins and in-flight/conflict candidate needed for explicit review, not a permanent full history. It never erases separately retained local source. Browser storage is not permanent.
 
 ### Polling and connection states
 
-Recommended interval pending product approval: GET /revision every 5 seconds while visible/online/authenticated, plus focus/reconnect/own successful mutation/before mutation checks. Hidden tabs stop; resume checks. Changed revision fetches manifest then only changed chunks/modules; statistics/calendar/log use ADR 0006's derived selective reads. Paged movement restarts, no mixed snapshot.
+Recommended interval pending product approval: GET /revision every 5 seconds while visible/online/authenticated, plus focus/reconnect/own successful mutation/before mutation checks. Hidden tabs stop; resume checks. Changed revision fetches manifest then only changed chunks/modules; statistics/calendar/log use `storage.md`'s derived selective reads. Paged movement restarts, no mixed snapshot.
 
 Foreground healthy-network staleness is up to one interval plus request/refetch time. Outage/throttle/background suspension has no finite delay guarantee; label cached revision/freshness. This deliberate polling simplification avoids persistent push connections. SSE/websocket could be a future transport optimization, never a data-model prerequisite.
 
@@ -160,7 +160,7 @@ States: online-synced (last observed revision validated); online-conflict (rejec
 
 ## 6. PostgreSQL schema and migration runner
 
-[postgres-schema.sql](../cloud/postgres-schema.sql) is the accepted schema specification; the API migration runner applies it transactionally under advisory lock and a checksummed schema_migrations ledger. Reject checksum drift, block startup on failed/unsupported schema; never drop readable data to boot. CREATE IF NOT EXISTS is exact-initial-schema restart safety, not an upgrade plan. Argon2/SHA/HMAC and UUID generation run in API; no extension required.
+[postgres-schema.sql](../contract/postgres-schema.sql) is the accepted schema specification; the API migration runner applies it transactionally under advisory lock and a checksummed schema_migrations ledger. Reject checksum drift, block startup on failed/unsupported schema; never drop readable data to boot. CREATE IF NOT EXISTS is exact-initial-schema restart safety, not an upgrade plan. Argon2/SHA/HMAC and UUID generation run in API; no extension required.
 
 Exact columns (types/defaults/checks/FKs in linked DDL):
 
@@ -210,7 +210,7 @@ Soft deletion: authenticated current password, baseRevision, operationId and exp
 
 ## 8. Deployment, operations and non-goals
 
-Repository implementation layout: app/ existing SPA; server/ single API, migration runner and operator backup tool; shared/ codec/types/pure index selectors used by both. Moves/source implementation require their own bounded packets. SPA lib/storage remains sole persistence boundary under ADR 0006. Shared JS/TypeScript codec avoids numeric rendering drift; implementation framework/dependencies require approval.
+Repository implementation layout: app/ existing SPA; server/ single API, migration runner and operator backup tool; shared/ codec/types/pure index selectors used by both. Moves/source implementation require their own bounded packets. SPA lib/storage remains sole persistence boundary under `storage.md`. Shared JS/TypeScript codec avoids numeric rendering drift; implementation framework/dependencies require approval.
 
 API Dockerfile: pinned multi-stage build/locked dependencies, non-root runtime, no baked secrets, bounded staging tmpfs/volume, health probe/graceful shutdown/read-only root where practical. Compose has api/postgres/reverse-proxy, named DB volume/private network/no published DB port; proxy serves SPA+/api and TLS. Managed DB omits postgres container and uses same API/DDL with TLS CA verification. Run migrations successfully before traffic then docker compose up -d, explicit readiness not sleep. Home deployment uses controlled TLS routing/tunnel, never public DB port.
 
@@ -229,7 +229,7 @@ Self-hosting checklist:
 7. Encrypt/dump/off-host copy/restore and verify ids/at/counts, record RTO and authorized backup retention.
 8. Record patch/restart/rollback/contact/disk/health monitoring; exercise recovery without claiming precommit write success.
 
-Non-goals: source/server/deployment execution from ADR acceptance; messaging/SMTP, sharing/grants, sync engine/background upload, analytics aggregation API, automatic conflict merge, automatic local-mode retirement or active client signing. Local release scope/transfer rejection and browser-data handling are owned by ADR 0006. Future implementation verification covers codec parity, query ownership, auth timing/rates/upgrades, sessions/recovery atomicity, no proofs in export/logs, stale batches/coupled effects, export consistency, gate/switch/recovery, compose/migrations and backup restore. Accepted design is not evidence those checks ran.
+Non-goals: source/server/deployment execution from ADR acceptance; messaging/SMTP, sharing/grants, sync engine/background upload, analytics aggregation API, automatic conflict merge, automatic local-mode retirement or active client signing. Local release scope/transfer rejection and browser-data handling are owned by `storage.md`. Future implementation verification covers codec parity, query ownership, auth timing/rates/upgrades, sessions/recovery atomicity, no proofs in export/logs, stale batches/coupled effects, export consistency, gate/switch/recovery, compose/migrations and backup restore. Accepted design is not evidence those checks ran.
 
 ## 9. Pending owner rulings
 

@@ -1,17 +1,15 @@
-# ADR 0006: Multi-file device-local store
+# Local device storage
 
-Status: accepted — the owner accepted the design on 2026-11-16. Earlier drafts are not reproduced.
-Author: Soren (development)
-Baseline: `efd6544b5dbb20f951afe6206af0664f8195affb`
-Target release: v2.0.0
+Current truth for the device-local store: pure IndexedDB virtual files split by account,
+module and plugin, shipped in 2.0.0. Earlier drafts are not reproduced.
 
 ## 1. Context and scope
 
-Replace the single `localStorage['runawaylog-data']` persistence unit with pure IndexedDB virtual files split by account, module and plugin. At the baseline, each successful Run reads/parses the store and synchronously serializes/replaces every account's history on the main thread; the Promise adapter does not make that I/O asynchronous ([storage/index.ts](../../src/lib/storage/index.ts), [storage.ts](../../src/storage.ts)). The new write serializes one bounded chunk plus derived index/manifest, not all accounts' data. Serialization and index CPU cost still exist.
+Persistence is a pure IndexedDB virtual file tree split by account, module and plugin; the single `localStorage['runawaylog-data']` unit is gone and unread. Each Run serializes one bounded chunk plus a derived index and manifest, not every account's history ([storage](../../src/lib/storage/)). The new write serializes one bounded chunk plus derived index/manifest, not all accounts' data. Serialization and index CPU cost still exist.
 
-v2.0.0 ships local mode only, with cloud disabled. No OPFS, server or desktop wrapper is part of this release. It starts with an empty store and shipped preference defaults; existing browser data/preferences are ignored without deleting or rewriting their keys. Local identity remains demo/session-scoped under [product.md](../product.md). Version/catalog/release-note changes belong to delivery; release notes must state that v1.2.0 exports cannot be imported into v2.0.0.
+v2.0.0 ships local mode only, with cloud disabled. No OPFS, server or desktop wrapper is part of this release. It starts with an empty store and shipped preference defaults; existing browser data/preferences are ignored without deleting or rewriting their keys. Local identity remains demo/session-scoped under [product.md](product.md). Version/catalog/release-note changes belong to delivery; release notes must state that v1.2.0 exports cannot be imported into v2.0.0.
 
-This ADR owns local file layout, publication/recovery, archive transfer and SPA integration. [ADR 0007](0007-canonical-cloud-model.md) owns the canonical domain model, run-json-1 codec, principal mapping, cloud/API/security/mode switching and deployment. The tree below is a materialization, not the repository API. Canonical model and transport seams are present in v2.0.0; their cloud implementation is not. Design acceptance does not constitute independent implementation acceptance.
+This ADR owns local file layout, publication/recovery, archive transfer and SPA integration. [`cloud.md`](cloud.md) owns the canonical domain model, run-json-1 codec, principal mapping, cloud/API/security/mode switching and deployment. The tree below is a materialization, not the repository API. Canonical model and transport seams are present in v2.0.0; their cloud implementation is not. Design acceptance does not constitute independent implementation acceptance.
 
 ## 2. Layout and identifiers
 
@@ -46,7 +44,7 @@ accounts/22222222-2222-4222-8222-222222222222/imports/index.json
 
 Folder accountId is a collision-checked canonical lowercase hyphenated UUIDv4. Validate `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` and path/account.json agreement. Handles never supply path segments. Rename atomically updates account.json, shared/accounts.json lookup and manifest; paths, chunks and registration do not move. Generation 0 creates the first UUID atomically; later accounts get UUIDs at their own creation.
 
-All ordinary files are UTF-8 canonical JSON envelopes defined in ADR 0007. account.json owns account identity/handle/times/versions; profile.json is the optional-profile envelope; settings.json excludes plugin/device settings. One plugins/games.json contains game settings and cards, including unknown keys. extensions.json preserves account-owned opaque fields/presence; imports hold immutable content-deduplicated sources. Zero hits means zero chunks, not a missing account/profile/index. Empty-account files are account, profile, settings, extensions, games, run index and imports index.
+All ordinary files are UTF-8 canonical JSON envelopes defined in `cloud.md`. account.json owns account identity/handle/times/versions; profile.json is the optional-profile envelope; settings.json excludes plugin/device settings. One plugins/games.json contains game settings and cards, including unknown keys. extensions.json preserves account-owned opaque fields/presence; imports hold immutable content-deduplicated sources. Zero hits means zero chunks, not a missing account/profile/index. Empty-account files are account, profile, settings, extensions, games, run index and imports index.
 
 shared/accounts.json is a derived installation directory. shared/extensions.json is installation-scoped, not another account's data container. Export metadata is interchange metadata. Explicit damaged-byte rescue uses registered recovery/ paths, separate from normal account imports.
 
@@ -90,7 +88,7 @@ Database runawaylog-vfiles, IDB schema version 1, distinct from domain/archive v
 | blobs | opaque unique blob id | immutable exact bytes, sha256, length, fileVersion |
 | pins | reader/export id | generation id, renewable lease expiry |
 
-A generation is an immutable complete logical tree map; unchanged blobs are referenced, not recopied. Generation 0 creates account UUID, required files/directory, defaults/deviceId and current pointer atomically. Later ids combine monotonic sequence and random writer nonce, checked for collisions. Only control/current publishes current; no localStorage pointer. Manifest and map membership agree; manifest has no recursive self-hash. Tokens belong outside this tree to the session adapter defined in ADR 0007.
+A generation is an immutable complete logical tree map; unchanged blobs are referenced, not recopied. Generation 0 creates account UUID, required files/directory, defaults/deviceId and current pointer atomically. Later ids combine monotonic sequence and random writer nonce, checked for collisions. Only control/current publishes current; no localStorage pointer. Manifest and map membership agree; manifest has no recursive self-hash. Tokens belong outside this tree to the session adapter defined in `cloud.md`.
 
 Publication protocol:
 
@@ -106,7 +104,7 @@ IDB multi-store transaction atomicity exposes old or new complete generation, ne
 
 crypto.subtle.digest('SHA-256', exactBytes) runs before commit outside the transaction. Hash raw file bytes, not a parsed/reserialized approximation; bytes means UTF-8 length, not JS string length. Manifest descriptors include path, module/schema, monotonic fileVersion, length and lowercase hex sha256; run index repeats chunk descriptors. Store full manifest digest in generation and current pointer; verify all memberships/descriptors agree. Missing SubtleCrypto blocks verified writes/imports, never silently bypasses integrity or falls back to another store.
 
-File versions start at 1, advance on committed content changes using a monotonic local revision source, and remain on byte-identical reuse; recovery/delete-recreate must not rewind them. deviceId in manifest is provenance, not account identity or ordering across backends. Imported versions/deviceId never replace local counters/device identity. Canonical serialization and the reserved auth/signature digest seam are owned by [ADR 0007 section 2](0007-canonical-cloud-model.md#2-canonical-model-and-stable-identity). Digests detect accidental corruption, not tampering; no active signing/encryption claim in v2.0.0.
+File versions start at 1, advance on committed content changes using a monotonic local revision source, and remain on byte-identical reuse; recovery/delete-recreate must not rewind them. deviceId in manifest is provenance, not account identity or ordering across backends. Imported versions/deviceId never replace local counters/device identity. Canonical serialization and the reserved auth/signature digest seam are owned by [`cloud.md` section 2](cloud.md#2-canonical-model-and-stable-identity). Digests detect accidental corruption, not tampering; no active signing/encryption claim in v2.0.0.
 
 ## 6. Zip format
 
@@ -129,7 +127,7 @@ Parsing/preview never writes current. Validate in order:
 7. Select explicit source accountId or sole account; otherwise reject ambiguity. Confirm target UUID explicitly; handle alone proves no ownership. Source UUID is provenance when target differs; rebind chunk ownership through canonical codec, preserve hit ids/at and target identity.
 8. On confirmation, queue local intent, re-read current target/revision and apply chosen merge/replace. Retry local CAS conflicts against latest state, reject missing target. Prepare/verify/commit via section 4; cancellation/quota/failure leaves current untouched.
 
-Merge is id-based/idempotent: current wins duplicate ids; first new occurrence wins; sort new combined history by stable ascending at. Replace replaces only hits after explicit confirmation. Neither changes target UUID/handle/registration/profile/settings/plugin/device preferences or existing unknown values. Preserve incoming source, including unused extensions/plugin data, in deduplicated imports. Dedup logical source, not zip bytes/headers/export time; do not recursively add a new wrapper on repeated transfer. This explicit file-import merge is distinct from cloud concurrency rules in ADR 0007.
+Merge is id-based/idempotent: current wins duplicate ids; first new occurrence wins; sort new combined history by stable ascending at. Replace replaces only hits after explicit confirmation. Neither changes target UUID/handle/registration/profile/settings/plugin/device preferences or existing unknown values. Preserve incoming source, including unused extensions/plugin data, in deduplicated imports. Dedup logical source, not zip bytes/headers/export time; do not recursively add a new wrapper on repeated transfer. This explicit file-import merge is distinct from cloud concurrency rules in `cloud.md`.
 
 Envelope context: supplied sizing is 83 bytes/hit, approximately 410 KB per 5,000 hits and 4.1 MB per 50,000 hits before wrappers/indexes; roughly 30× realistic-history headroom is a conservative resource rationale, not a compression guarantee. This protects against hostile archives without truncating real history.
 
@@ -141,7 +139,7 @@ With no current pointer, expose ready empty login/default preference snapshot; d
 
 Before first login, preference choices are volatile until they join generation 0; do not report persistence before that commit. Existing browser data/backup/credential/preferences are not read to build the store and are not erased. Deployment requires closing/reloading obsolete clients; this is version hygiene, not a cross-store reconciliation mechanism.
 
-GC runs only after healthy commit/boot, not failed recovery. Keep current, up to two previous healthy generations as available, live staged/reader pins and quarantined recovery evidence until explicit resolution. Generation 0 has no predecessor. Traverse retained maps and delete only unreachable blobs/expired unpinned staged candidates older than 24 hours; recheck roots/pins atomically in writer-shared transaction. Readers pin before fetching; expired lease must repin/restart. Quota failure never authorizes deleting last readable generation. Separate local-mode source is protected from future cache eviction; cloud cache retention is specified in ADR 0007.
+GC runs only after healthy commit/boot, not failed recovery. Keep current, up to two previous healthy generations as available, live staged/reader pins and quarantined recovery evidence until explicit resolution. Generation 0 has no predecessor. Traverse retained maps and delete only unreachable blobs/expired unpinned staged candidates older than 24 hours; recheck roots/pins atomically in writer-shared transaction. Readers pin before fetching; expired lease must repin/restart. Quota failure never authorizes deleting last readable generation. Separate local-mode source is protected from future cache eviction; cloud cache retention is specified in `cloud.md`.
 
 Unreadable current blocks writes and preserves raw evidence. Verify retained committed generations newest first; a healthy older tree may supply labeled read-only recovery, never silent loss of newer hits. Explicit recovery commits a new generation referencing verified content without erasing damaged evidence. If none verifies, remain blocked and offer accessible original-byte rescue. If IDB cannot open, say rescue cannot access bytes. Do not fabricate an empty success.
 
@@ -181,7 +179,7 @@ Local queue stores intent/patch, allocates Run id/at once, rebases on latest loc
 Required implementation file scope:
 
 - src/lib/storage/index.ts/model.ts/preferences.ts/adapter.ts plus responsibility files idb.ts/files.ts/chunks.ts/snapshot.ts/commit.ts/recovery.ts; one-way facade in src/storage.ts, async creation in src/auth.ts and snapshot/canonical types in src/types.ts. Remove storage adapter/root storage dependency cycle and synchronous whole-record Run path.
-- src/app/App.tsx hydration gate; src/ui/Login.tsx async creation/recovery export. Local session semantics remain; principal mapping belongs to ADR 0007's resolver, not features.
+- src/app/App.tsx hydration gate; src/ui/Login.tsx async creation/recovery export. Local session semantics remain; principal mapping belongs to `cloud.md`'s resolver, not features.
 - src/lib/i18n/index.ts, src/lib/time/index.ts, src/darkMode.ts and theme consumers: async preference hydration/commands or memory-only observation.
 - Dashboard.tsx, Statistics.tsx, HitCalendar.tsx, HitLogs.tsx: RunView/total/month/recent projection, not full hits state. HitLogs numbering receives total separately.
 - Profile.tsx profile patch/total; GamesHub.tsx plugin patch; Settings.tsx async transfer/month print; PrintCalendar.tsx month projection and accurate total.
@@ -194,7 +192,7 @@ Approved design alignment exception to [architecture.md](../architecture.md): st
 
 2026-11-16 owner-authorized rebase: non-test runtime `src/lib/storage/` + `src/lib/identity/` ≤1900 lines; identity + credential handling (including auth orchestration and inline persistence integration) ≤300 lines; no further increase is approved without splitting a responsibility into its own module.
 
-app/features → public storage domain interfaces; lib/data → storage transfer/file interface and pure codecs; storage → models/pure helpers/platform APIs. lib never imports features/app; features never deep-import another feature. lib/storage alone touches browser persistence APIs; transfer/components cannot open IDB or construct keys. Root compatibility facade points inward without cycle. Keep projection helpers independent of boot initialization. Add dependency/API-ownership checks. Canonical shared code and future server layout are owned by ADR 0007.
+app/features → public storage domain interfaces; lib/data → storage transfer/file interface and pure codecs; storage → models/pure helpers/platform APIs. lib never imports features/app; features never deep-import another feature. lib/storage alone touches browser persistence APIs; transfer/components cannot open IDB or construct keys. Root compatibility facade points inward without cycle. Keep projection helpers independent of boot initialization. Add dependency/API-ownership checks. Canonical shared code and future server layout are owned by `cloud.md`.
 
 ## 11. Test plan before independent implementation acceptance
 
@@ -207,7 +205,7 @@ Required cases:
 - Corrupt/missing chunk, sha mismatch, malformed hit, index/membership disagreement and corruption in nonselected account reject whole import with old pointer intact.
 - Actual-stream bomb caps, false sizes, too many entries, deep JSON, path/header aliases/duplicates, unsupported encoding/compression/encryption and export refusal before download at every limit.
 - Idempotent merge/current-wins/stable ties, explicit replace confirmation, write-after-preview preservation, source dedup/unknown preservation without recursive wrapper growth.
-- Account isolation, UUID-stable rename, same-handle competing creation, handle/path separation and supported canonical values; compare codec parity with ADR 0007 fixtures.
+- Account isolation, UUID-stable rename, same-handle competing creation, handle/path separation and supported canonical values; compare codec parity with `cloud.md` fixtures.
 - Crash before prepare/between prepare+commit/during pointer transaction/after commit before publish; old or new complete generation only. Two writers rebase without loss; pinned readers and last healthy generation survive GC.
 - Labeled previous-generation recovery, no silent newer-hit loss, no-readable-generation blocked, accessible raw rescue, IDB/open/quota/upgrade/SubtleCrypto failures visible.
 - Clean empty-first boot, obsolete keys unchanged and not read, default preferences, repeated boot/login and competing accounts, interrupted first creation retry, unreadable-current not mistaken for absence.
@@ -224,10 +222,10 @@ Required cases:
 - Failed import/write never destroys readable data or acknowledges failure as success; crash exposes old/new complete generation, or absent current before first commit.
 - Export→fresh-target import within section 7's envelope preserves hit count/ids/at; out-of-envelope export refuses before download, never truncates.
 - Unknown fields/readable recovery bytes/current metadata/preferences and idempotent merge/replace rules survive; session scope and local-only release remain.
-- Recovery never silently promotes shortened history; local retention is not browser-eviction protection. Cloud gates/security are separately accepted under ADR 0007.
+- Recovery never silently promotes shortened history; local retention is not browser-eviction protection. Cloud gates/security are separately accepted under `cloud.md`.
 
 ## 13. Implementation increments
 
 (a) Core + first boot + export: authorized test/archive dependencies, canonical codecs, IDB generations/CAS/GC/integrity, selective index, device preferences, boot/snapshot integration and preflighted export. Keep core/empty-start/isolation/selective-read/export/failure and unaffected surfaces green; importer-dependent gates remain explicitly incomplete. Unpublished candidate only, no half-synchronous release.
 
-(b) Import/merge/recovery + dialog copy: bounded format-1 validation, latest-revision confirmation, recovery UI/rescue, tab/GC fault checks, pickers/three locales. Keep all local product/transfer/print/i18n contracts green and obtain independent browser acceptance before local v2 delivery. Delivery owns version/catalog/release notes and obsolete-client closure. Future authentication/cloud/offline surfaces follow ADR 0007, not these local increments.
+(b) Import/merge/recovery + dialog copy: bounded format-1 validation, latest-revision confirmation, recovery UI/rescue, tab/GC fault checks, pickers/three locales. Keep all local product/transfer/print/i18n contracts green and obtain independent browser acceptance before local v2 delivery. Delivery owns version/catalog/release notes and obsolete-client closure. Future authentication/cloud/offline surfaces follow `cloud.md`, not these local increments.

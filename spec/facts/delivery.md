@@ -6,8 +6,8 @@ Vercel is the only deployment. `vercel.json` and the Git integration on
 `origin/main` produce `runaway.macacloud.com`. The self-hosting artifacts
 (`Dockerfile`, `compose.yml`, `nginx.conf`, `.dockerignore`) are **archived, not
 kept as a live alternative**: they move to `archived/selfhost/` with a dated
-README saying they were never the path any release used. Reviving them is a new
-decision (ADR), not a fallback nobody tested.
+README saying they were never the path any release used. Reviving them would be its own
+version with its own evidence, not a fallback nobody tested.
 
 `verify-build.sh` is retired. It could report "All checks passed" for a `dist/`
 it never built (D-1) — a gate that lies is worse than no gate, and its job is now
@@ -15,13 +15,17 @@ done by CI.
 
 ## Branches and release acts
 
-- `main` is the only long-lived branch. RUN has one environment, so a
-  `develop → testing → main` model would add ceremony without adding a check
-  (framework decision 2026-11-12, §5).
-- **A push to `main` is a release act.** It happens after an increment passes
-  acceptance, never as a save. Work in progress stays in the contributor's clone
-  or workspace.
-- Feature branches inside a colleague's clone are fine and are never pushed.
+- Three long-lived branches, in the order the collaboration contract sets:
+  `develop` is the integration line, `testing` is what acceptance runs against,
+  `main` is production. Promotion is fast-forward only: `develop` → `testing` →
+  `main`.
+- `main` is what Vercel deploys (`runaway.macacloud.com`). **A promotion to `main`
+  is a release act.** It happens after an increment passes its gates and is
+  accepted, never as a save.
+- Large work lives on `dev/*` and merges back into `develop` first. Feature
+  branches inside a colleague's clone are never pushed.
+- The only standardized tag is `version/X.Y.Z`, placed on the `develop` commit the
+  version record names.
 
 ## CI — the gates stop depending on who ran them
 
@@ -55,10 +59,11 @@ stronger than a label. Recorded limitation: the local CLI cannot read
 
 ## Release record
 
-Every released increment gets one record in the framework repository at
-`spec/records/handoffs/YYYY-MM-DD-<slug>.md`: what changed, what is proven, what is
-not, the deployment id, the hash trio, and the acceptance artifacts. The version
-catalog (`versions.md`) gains a row. No second summary document.
+Every released increment gets its own record at `spec/versions/X.Y.Z.md`: scope,
+decisions, exact commits, the commands run and their results, status, known
+limitations, the deployment id and the served-byte identity. `spec/versions/README.md`
+carries the ladder that points at those records. No framework copy, no changelog, no
+second summary document — records stay in this repository.
 
 ## Environments and secrets
 

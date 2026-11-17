@@ -1,15 +1,15 @@
-# ADR 0008: Device-local password identity
+# Device-local password identity
 
-Status: **proposed** — owner acceptance later. This records the binding Maia design, not implementation acceptance.
-Executor: Soren, assisted by Claude Code; executor is not independent acceptance.
-Authority: bounded `password-login-packet.md` in workspace Git metadata, 2026-11-16.
-Companions: [ADR 0006](0006-multi-file-store.md), [ADR 0007](0007-canonical-cloud-model.md), [PD-1](../product.md).
+Current truth for local sign-in: username first, password set on first use, PBKDF2-HMAC-SHA-256
+credentials kept outside the account tree. Shipped in 2.0.0; copy tightened in 2.0.1.
+
+Companions: [storage.md](storage.md), [cloud.md](cloud.md), [PD-1](product.md).
 
 ## 1. Authorized local policy change
 
 This separate owner-authorized round supersedes PD-1's empty-password behavior and S0 L1/L2's unconditional local entry: an unknown handle requires explicit password setup and confirmation before creation/entry; a credentialed local account requires verification, including refusal of empty passwords. This is a product change, not a reinterpretation of the old bypass as a defect. Accepted ADRs and product.md remain unchanged historical authorities except for this proposed, explicitly directed delta.
 
-PD-2 device-local data, PD-3 tab/session identity, account UUID/registration, COW integrity, selective reads and archive format remain. Cloud remains disabled. ADR 0007's **server Argon2id**, bearer sessions, principal mapping, recovery and future API remain separate and unchanged. Local credentials do not become cloud credentials. No dependencies, network/server/cloud work, version/catalog/release changes or deployment are authorized.
+PD-2 device-local data, PD-3 tab/session identity, account UUID/registration, COW integrity, selective reads and archive format remain. Cloud remains disabled. `cloud.md`'s **server Argon2id**, bearer sessions, principal mapping, recovery and future API remain separate and unchanged. Local credentials do not become cloud credentials. No dependencies, network/server/cloud work, version/catalog/release changes or deployment are authorized.
 
 ## 2. KDF and alternatives
 
@@ -66,7 +66,7 @@ Session semantics remain memory + sessionStorage identity only: `username` and `
 
 ## 6. Exact atomic publication boundary
 
-Credential derivation occurs outside IDB transactions. Reuse ADR 0006 prepare → staged readback/integrity verification → final current-pointer commit. Candidates carry the credential intent only in transient memory, never the stored generation. No credential write during prepare or verify.
+Credential derivation occurs outside IDB transactions. Reuse `storage.md` prepare → staged readback/integrity verification → final current-pointer commit. Candidates carry the credential intent only in transient memory, never the stored generation. No credential write during prepare or verify.
 
 The final readwrite transaction spans credentials and existing stores. Recheck current/base revision and exact verified staged candidate, then transactionally read credential value **and key existence**. Absent expected value means key must be absent; rewrite expected value means all six old fields must still match. Account/handle predicates were checked against the immutable base directory and are protected by the same current CAS. Only then write credential if changed, mark committed, update current and first device metadata/release pins together. Session/memory publication awaits transaction.oncomplete, not put success. Failed staged/final candidates cannot half-create a published identity or stray credential.
 
