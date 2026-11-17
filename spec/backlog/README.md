@@ -7,7 +7,7 @@ schedule; an item leaves this file by becoming a version in `versions/`.
 
 | Item | Why it waits |
 | --- | --- |
-| Cloud storage (PostgreSQL plus thin API) | designed and accepted, **not implemented**; owner opens it deliberately. Model in [cloud](../facts/cloud.md), DDL in [contract](../contract/postgres-schema.sql) |
+| Cloud storage (PostgreSQL plus thin API) | designed, and now planned in seven steps ([delivery plan](cloud-delivery-plan.md)); the three open rulings were settled 2026-11-17; **not implemented and not scheduled** — the owner opens it deliberately. Model in [cloud](../facts/cloud.md), DDL in [contract](../contract/postgres-schema.sql) |
 | CI browser E2E | owner deferred it to a later version; the gates stay unit-level until then |
 | Deeper PWA work (install prompt, offline editing) | 2.0.1 shipped the update path; the rest has no defined acceptance |
 | CI optimisation (caching, matrix) | owner deferred; current wall time is acceptable |
@@ -38,6 +38,10 @@ version before work starts.
 - Privacy: encrypting stored data at rest, an explicit "clear all data" control (export first).
 - Content: story progression over real time, additional action buttons, the unbuilt games
   (slot machine, achievements, daily challenges) that PD-8 lists as placeholders.
+
+Cloud specifics now fixed by the owner: remote host, API and database not assumed co-located,
+polling delay accepted, and the interface must show *syncing* / *not synced* / *synced*. Those are
+recorded as rulings in [cloud](../facts/cloud.md) §9, not as backlog items.
 
 ## Closed by owner decision (2026-11-17)
 

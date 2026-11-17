@@ -59,8 +59,11 @@ stronger than a label. Recorded limitation: the local CLI cannot read
 ## Release record
 
 Every released increment gets its own record at `spec/versions/X.Y.Z.md`: scope,
-decisions, exact commits, the commands run and their results, status, known
-limitations, the deployment id and the served-byte identity. `spec/versions/README.md`
+decisions, exact commits as full 40-character SHAs, the commands run and their results, status,
+known limitations, the deployment id and how the served bytes were compared. Served-byte digests
+are checked at release time and **not stored** in the record: they are reproducible from the
+commit, they cost a rebuild to refresh, and a 64-character file hash next to a 40-character commit
+id is read as the wrong kind of identity. Byte counts and the comparison result are enough. `spec/versions/README.md`
 carries the ladder that points at those records. No framework copy, no changelog, no
 second summary document — records stay in this repository.
 

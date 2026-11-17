@@ -152,7 +152,7 @@ Cloud→local uses verified cloud export at one revision and `storage.md`'s expl
 
 ### Polling and connection states
 
-Recommended interval pending product approval: GET /revision every 5 seconds while visible/online/authenticated, plus focus/reconnect/own successful mutation/before mutation checks. Hidden tabs stop; resume checks. Changed revision fetches manifest then only changed chunks/modules; statistics/calendar/log use `storage.md`'s derived selective reads. Paged movement restarts, no mixed snapshot.
+Accepted by the owner (section 9): GET /revision every 5 seconds while visible/online/authenticated, plus focus/reconnect/own successful mutation/before mutation checks. Hidden tabs stop; resume checks. Changed revision fetches manifest then only changed chunks/modules; statistics/calendar/log use `storage.md`'s derived selective reads. Paged movement restarts, no mixed snapshot.
 
 Foreground healthy-network staleness is up to one interval plus request/refetch time. Outage/throttle/background suspension has no finite delay guarantee; label cached revision/freshness. This deliberate polling simplification avoids persistent push connections. SSE/websocket could be a future transport optimization, never a data-model prerequisite.
 
@@ -231,10 +231,18 @@ Self-hosting checklist:
 
 Non-goals: source/server/deployment execution from ADR acceptance; messaging/SMTP, sharing/grants, sync engine/background upload, analytics aggregation API, automatic conflict merge, automatic local-mode retirement or active client signing. Local release scope/transfer rejection and browser-data handling are owned by `storage.md`. Future implementation verification covers codec parity, query ownership, auth timing/rates/upgrades, sessions/recovery atomicity, no proofs in export/logs, stale batches/coupled effects, export consistency, gate/switch/recovery, compose/migrations and backup restore. Accepted design is not evidence those checks ran.
 
-## 9. Pending owner rulings
+## 9. Owner rulings (2026-11-17)
 
-Exactly three items remain pending; recommendations are not decisions:
+The three rulings that were pending are decided. They constrain the design; none of them starts
+implementation.
 
-1. First deployment location: recommend small VPS, stable public TLS and a simple owned runbook. Managed PostgreSQL reduces DB operations but adds cost/network/backup constraints and still needs an API host; home server+tunnel shifts availability/power/network/security to owner. No purchase authorized.
-2. API/DB placement: recommend same host, isolated compose services initially for simple networking/latency/reproduction. Separate/managed DB improves resource/fault isolation but adds network/TLS/firewall operations. Same-host correlated failure makes off-host backup essential.
-3. Polling product acceptability: recommend section 5's 5-second foreground interval plus focus/reconnect/mutation checks. Longer saves requests but increases staleness; shorter increases load/limit budget. Owner must accept delay before cloud delivery; persistent push transport is not selected.
+1. **Deployment is on a remote server.** Not a home connection, not a tunnel. Stable public TLS and
+   an owned runbook are part of the delivery, and no purchase is authorised by this file.
+2. **API and database are not guaranteed to share a host.** The design must therefore assume
+   separation: connection pooling, retries with bounded backoff, explicit timeouts on every
+   database call, and off-host backups as a requirement rather than an improvement. Same-host
+   co-location stays the simplest supported arrangement, but never a documented assumption.
+3. **Polling delay is acceptable**, and the interface must make the state visible instead of
+   hiding it: every surface that shows synced data carries an explicit indicator —
+   *syncing* while a batch is in flight, *not synced* when the last attempt failed or the device
+   is offline, *synced* when the server revision matches. Push transport is not selected.
