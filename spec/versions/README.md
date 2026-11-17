@@ -18,7 +18,7 @@ so the app keeps showing the previous version number.
 | 1.1.2 | `757c958107e9f714e53fa22ea562a674caebdc85` | `dpl_HqyPKSif2UJ9nhu7ARtk2EkJKF8M` | superseded | app shell extracted into `src/app/` behind a re-export shim; no behaviour change | ladder only (pre-standard) |
 | 1.1.1 | `c2b91b36c03094f93a90f541e72e5497347fc477` | `dpl_7dHipEWZyx4WMyRTLEX6K2gnu7zD` | superseded | the eight Profile labels localized in all three locales; copy baseline becomes a floor | ladder only (pre-standard) |
 | 1.1.0 | `9fa97b9207bf7fd46c426595b542bae0294d4c21` | `dpl_2nqrXCLCLaP6BuW2kfbUKFzFqGT9` | superseded | typed locale modules replace the XML generator; generator, baselines and XML deleted | ladder only (pre-standard) |
-| 1.0.3 | `07f31d30245ca7d6fee2731753d68f5d7623fbe5` | `dpl_aubqqvhih…` | not a version | CI workflow, lint gate and deployed-identity check; served bytes identical to 1.0.2 | — |
+| 1.0.3 | `07f31d30245ca7d6fee2731753d68f5d7623fbe5` | `dpl_GXoSrULN7bMAG6u4VvM5yBdcQQyY` | not a version | CI workflow, lint gate and deployed-identity check; served bytes identical to 1.0.2 | — |
 | 1.0.2 | `27978affc006a6d821cef42418da89faee4bad8d` | `dpl_8EMnAtYkcu41qMfx1CvWqA6jAVkZ` | superseded | storage owns the stored bytes; a missing registration date is repaired once and persisted (closes D-12) | ladder only (pre-standard) |
 | 1.0.1 | `41ad563e30675b00e429cda1e6e8bbf4b764e805` | `dpl_33Up86dcjbfTkTaPue45gDd2RugK` | superseded | two React correctness fixes; acceptance 5/6, D-12 deferred at the time | ladder only (pre-standard) |
 | 1.0.0 | `fdcd731c59b32403ce10dc6e9ed524c82af22487` | `dpl_ErTiLAB9bGR7u96HgFHjuD6bUYjZ` | superseded | print-surface repair and `zh_tw` logout | ladder only (pre-standard) |
