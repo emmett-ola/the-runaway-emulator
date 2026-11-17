@@ -11,7 +11,7 @@ so the app keeps showing the previous version number.
 
 | Version | Commit | Deployment | Status | Scope | Record |
 | --- | --- | --- | --- | --- | --- |
-| 2.1.0 | `92c2529` (tag `version/2.1.0`; structure commit `419780a`) | — (specification only) | current | repository structure converted to the project standard: pointer plus `spec/AGENTS.md`, `facts/`, `versions/`, `backlog/`, `contract/`; decision ledger and duplicate roadmap retired; three-branch model adopted | [2.1.0.md](2.1.0.md) |
+| 2.1.0 | `316ed91` (tag `version/2.1.0`; structure commit `419780a`; later record-only edits carry no tag) | — (specification only) | current | repository structure converted to the project standard: pointer plus `spec/AGENTS.md`, `facts/`, `versions/`, `backlog/`, `contract/`; decision ledger and duplicate roadmap retired; three-branch model adopted | [2.1.0.md](2.1.0.md) |
 | 2.0.1 | `152e071f0b265a80cca74f32179c01d94db26f3e` | `dpl_CZD7VDaDo2e6VfgMF2aaxk4k1sDi` | accepted, superseded | login polish and update path: quieter setup copy, "at least 6 characters" with no technical vocabulary, new deployments adopted without a manual refresh | [2.0.1.md](2.0.1.md) |
 | 2.0.0 | `c99e410521045996cceeda7bcf79a56c6523b0d3` | `dpl_rX1CoyGUgi3Fcfn272gg1KnNn16r` | superseded | multi-file IndexedDB store, ZIP v1 archive, local password identity, fresh start, dependency audit; cloud disabled | [2.0.0.md](2.0.0.md) |
 | 1.2.0 | `efd6544b5dbb20f951afe6206af0664f8195affb` | `dpl_8zhRQVN6JQyCuHcuXtmpSsvRRzDV` | superseded | architecture rebuild complete and legacy tree cut over; six production smoke criteria verified | [1.2.0.md](1.2.0.md) |
