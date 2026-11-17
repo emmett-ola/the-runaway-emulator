@@ -82,6 +82,17 @@ trigger: none for the shipped baseline; any recovery would need a separate owner
 
 Shipped in 2.0.0 per the owner packet; see
 [ADR 0008](decisions/0008-local-password-identity.md). No recovery by design.
-ADR 0008 still says proposed and `spec/versions.md` stops at 1.2.0; those records
-remain unchanged. The 2.0.0 statement is an owner-supplied fact, not independently
-verified deployment.
+Shipped as 2.0.1 including the quieter login copy; `spec/versions.md` carries rows for
+2.0.0 and 2.0.1 with their verified deployment identities.
+
+## Test isolation (vitest file parallelism)
+
+status: deferred
+trigger: anyone making the storage tests independent again.
+
+Test files share process-global storage state (fake IndexedDB plus the storage
+singleton), so running them in parallel produced a load-dependent failure
+(`settings-header-import`: import dialog missing once the suite grew past ~570 cases).
+`vite.config.ts` therefore runs files sequentially (`fileParallelism: false`) with a
+20 s per-test ceiling. That trades CI time for determinism; the real fix is per-file
+storage reset, not a longer timeout.
