@@ -46,19 +46,17 @@ export function LoginPassword({ identity, onBack, onAuthenticated }: LoginPasswo
   const handleBack = () => { setPassword(''); setConfirmation(''); setError(null); onBack(); };
   return (
     <form onSubmit={handleSubmit}>
-      <div className="login-form-group">
+      {!setup && <div className="login-form-group">
         <label htmlFor="login-identity" className="login-label">{i18n.t('login.username')}</label>
         <input id="login-identity" name="username" className="login-input" value={identity.username} autoComplete="username" readOnly />
-      </div>
-      {setup && <p className="login-notice">{i18n.t('login.setup_notice')}</p>}
-      <p className="login-notice">{i18n.t('login.device_notice')}</p>
+      </div>}
+      {setup && <p id="login-setup-notice" className="login-notice">{i18n.t('login.setup_notice')}</p>}
       {error !== null && <LoginError reason={error} />}
       <div className="login-form-group">
         <label htmlFor="password" className="login-label">{i18n.t('login.password')}</label>
         <input id="password" name="password" type="password" className="login-input"
-          value={password} onChange={event => setPassword(event.target.value)} placeholder={i18n.t('login.placeholder_password')}
-          autoComplete={setup ? 'new-password' : 'current-password'} aria-describedby={setup ? 'login-password-rules' : undefined} autoFocus disabled={loading} />
-        {setup && <p id="login-password-rules" className="login-notice">{i18n.t('login.password_rules')}</p>}
+          value={password} onChange={event => setPassword(event.target.value)} placeholder={i18n.t(setup ? 'login.password_rules' : 'login.placeholder_password')}
+          autoComplete={setup ? 'new-password' : 'current-password'} aria-describedby={setup ? 'login-setup-notice' : undefined} autoFocus disabled={loading} />
       </div>
       {setup && <div className="login-form-group">
         <label htmlFor="confirmation" className="login-label">{i18n.t('login.confirm_password')}</label>
@@ -69,7 +67,7 @@ export function LoginPassword({ identity, onBack, onAuthenticated }: LoginPasswo
       <button type="submit" className="login-button" disabled={loading}>
         {i18n.t(loading ? 'login.loading' : setup ? 'login.setup_button' : 'login.button')}
       </button>
-      <div className="login-toggle"><button type="button" className="login-toggle-button" onClick={handleBack} disabled={loading}>{i18n.t('login.back')}</button></div>
+      {!setup && <div className="login-toggle"><button type="button" className="login-toggle-button" onClick={handleBack} disabled={loading}>{i18n.t('login.back')}</button></div>}
     </form>
   );
 }

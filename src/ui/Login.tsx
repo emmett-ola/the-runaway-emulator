@@ -50,9 +50,11 @@ export const Login = ({ onLogin }: LoginProps) => {
             {i18n.getSupportedLanguages().map(language => <option key={language.code} value={language.code}>{language.name}</option>)}
           </select>
         </div>
-        <h1 className="login-title">{i18n.t('login.title')}</h1>
-        <p className="login-subtitle">{i18n.t('login.subtitle')}</p>
-        <p className="login-slogan">"{i18n.t('login.slogan')}"</p>
+        <h1 className="login-title">{i18n.t(identity?.step === 'setup' ? 'login.register_title' : 'login.title')}</h1>
+        {identity?.step !== 'setup' && <>
+          <p className="login-subtitle">{i18n.t('login.subtitle')}</p>
+          <p className="login-slogan">"{i18n.t('login.slogan')}"</p>
+        </>}
         {error !== null && <LoginError reason={error} />}
         {identity ? (
           <LoginPassword key={`${identity.accountId ?? 'new'}:${identity.username}:${identity.step}`} identity={identity}

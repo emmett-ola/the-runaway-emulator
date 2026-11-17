@@ -1,4 +1,8 @@
 import { expect, it, vi } from 'vitest';
+
+// This file commits 62 monthly chunks through the real store; the default 5s limit is
+// too tight when the full suite runs in parallel.
+vi.setConfig({ testTimeout: 30_000 });
 import { IDBObjectStore as FakeObjectStore } from 'fake-indexeddb';
 import { appendHit, createAccount, ensureRunView, getAccountSnapshot, getRunView, initializeStorage, resetStorage } from './index';
 import { importUserData, confirmImportedData } from '../data/transfer';

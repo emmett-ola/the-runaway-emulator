@@ -81,14 +81,18 @@ describe('username-first local password gate', () => {
     expect(await readRecord('policy-ui')).toBeNull();
     expect(onLogin).not.toHaveBeenCalled();
   });
-  it('back and account change discard both password fields while preserving the username', async () => {
+  it('password verification retains Back and discards the password when changing accounts', async () => {
+    await register('first-ui', synthetic()); await register('second-ui', synthetic()); logout();
     render(<Login onLogin={vi.fn()} />); await next('first-ui'); fill(synthetic());
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: i18n.t('login.back') })).toHaveAttribute('type', 'button');
     fireEvent.click(screen.getByRole('button', { name: i18n.t('login.back') }));
     expect(screen.getByLabelText(i18n.t('login.username'))).toHaveValue('first-ui');
     expect(screen.queryByLabelText(i18n.t('login.password'))).toBeNull();
     await next('second-ui');
     expect((screen.getByLabelText(i18n.t('login.password')) as HTMLInputElement).value === '').toBe(true);
-    expect((screen.getByLabelText(i18n.t('login.confirm_password')) as HTMLInputElement).value === '').toBe(true);
+    expect(screen.queryByLabelText(i18n.t('login.confirm_password'))).toBeNull();
+    expect(screen.getByRole('button', { name: i18n.t('login.back') })).toBeEnabled();
   });
   it('unmounting discards sensitive state and suppresses the login callback after a pending submit', async () => {
     const onLogin = vi.fn(), view = render(<Login onLogin={onLogin} />);
@@ -124,7 +128,34 @@ describe('username-first local password gate', () => {
       view.unmount();
     }
     render(<Login onLogin={vi.fn()} />); await next('locale-ui');
-    for (const key of ['login.password_rules', 'login.setup_notice', 'login.device_notice']) expect(screen.getByText(i18n.t(key))).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(i18n.t('login.password_rules'))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('login.setup_notice'))).toBeInTheDocument();
+  });
+  it.each(['en_us', 'zh_cn', 'zh_tw'] as const)('setup in %s has one title, one concise hint, two fields and exactly one total button', async locale => {
+    await i18n.setLanguage(locale);
+    const { container } = render(<Login onLogin={vi.fn()} />);
+    await next('quiet-setup-ui');
+    expect(screen.getAllByRole('heading')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(i18n.t('login.register_title'));
+    const form = container.querySelector('form')!;
+    expect(Array.from(form.children).map(element => element.tagName)).toEqual(['P', 'DIV', 'DIV', 'BUTTON']);
+    expect(container.querySelectorAll('p')).toHaveLength(1);
+    expect(container.querySelectorAll('.login-notice')).toHaveLength(1);
+    expect(screen.getByText(i18n.t('login.setup_notice'))).toHaveAttribute('id', 'login-setup-notice');
+    expect(i18n.t('login.setup_notice').length).toBeLessThanOrEqual(70);
+    expect(container.querySelector('.login-subtitle')).toBeNull();
+    expect(container.querySelector('.login-slogan')).toBeNull();
+    const inputs = Array.from(form.querySelectorAll('input'));
+    expect(inputs.map(input => [input.name, input.type, input.autocomplete])).toEqual([
+      ['password', 'password', 'new-password'], ['confirmation', 'password', 'new-password'],
+    ]);
+    expect(inputs[0]).toHaveAttribute('aria-describedby', 'login-setup-notice');
+    expect(inputs[0]).toHaveAttribute('placeholder', i18n.t('login.password_rules'));
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(container.querySelectorAll('button')).toHaveLength(1);
+    expect(form.querySelectorAll('button[type="submit"]')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: i18n.t('login.setup_button') })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: i18n.t('login.back') })).toBeNull();
   });
   it('renders a generic localized fallback instead of unknown exception messages', () => {
     const marker = synthetic(); render(<LoginError reason={new Error(marker)} />);

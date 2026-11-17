@@ -81,6 +81,16 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',
+      // The storage tests commit real generations and the identity tests run PBKDF2; under
+      // full-suite parallelism the default 5s limit produced load-dependent flakes
+      // (verified: same suite, one green run, one red run). A 20s ceiling removes the
+      // timeout race; a genuine hang still fails.
+      testTimeout: 20_000,
+      // Files share process-global storage state (fake IndexedDB + the storage singleton), and
+      // running them in parallel made `settings-header-import` fail with the import dialog
+      // missing (verified: parallel = 1 failure, sequential = 577/577). Run files sequentially
+      // until the isolation defect is fixed; see spec/roadmap.md.
+      fileParallelism: false,
     },
   }
 })
