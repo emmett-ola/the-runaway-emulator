@@ -1,50 +1,105 @@
 # Backlog
 
-Deferred work and deferred questions, with the reason. Nothing here is a commitment or a
-schedule; an item leaves this file by becoming a version in `versions/`.
+Deferred work and deferred questions, one row each, with the reason it waits. Nothing here is a
+commitment: an item leaves this file by becoming a version in `versions/` (or by landing in a
+version's scope), and an item that will never be done moves to *Closed* with the reason.
 
-## Deferred by owner decision
+How we discuss it: one group at a time, one answer per row — **do it**, **later**, or **not**.
+*Do it* turns the row into a version scope and a record; *later* keeps the row and refreshes the
+reason; *not* moves it to Closed with a line saying why.
 
-| Item | Why it waits |
-| --- | --- |
-| Cloud storage (PostgreSQL plus thin API) | designed, and now planned in seven steps ([delivery plan](cloud-delivery-plan.md)); the three open rulings were settled 2026-11-17; **not implemented and not scheduled** — the owner opens it deliberately. Model in [cloud](../facts/cloud.md), DDL in [contract](../contract/postgres-schema.sql) |
-| CI browser E2E | owner deferred it to a later version; the gates stay unit-level until then |
-| Deeper PWA work (install prompt, offline editing) | 2.0.1 shipped the update path; the rest has no defined acceptance |
-| CI optimisation (caching, matrix) | owner deferred; current wall time is acceptable |
-| Accessibility / design round | serious colour-contrast findings recorded in 2.0.0 (Login 1 node, Home 24, Settings 1, Print 22 plus one `scrollable-region-focusable`); fixing them is that round's job |
+## 1. Ready to decide
 
-## Deferred on a measured or environmental condition
+Owner answer needed; the decision is what unlocks a version.
 
-| Item | Condition |
-| --- | --- |
-| Run-index sharding | only when measured index cost exceeds the agreed budget. Recorded Node/jsdom/fake-IDB measurements, relative not absolute: 1k hits → 95.7 KB / 39.6 ms; 10k → 910 KB / 252 ms; 50k → 4.57 MB / 1,183 ms |
-| Firefox verification | blocked on the build host: `firefox-1555` installed versus `firefox-1572` expected. Environment limitation, not a product defect |
-| Real power-loss durability | needs owner-authorised hardware validation; today the claim is design guarantee plus injectable fault tests |
-| Test isolation (vitest file parallelism) | files share process-global storage state (fake IndexedDB plus the storage singleton), so `settings-header-import` failed under parallel load once the suite passed ~570 cases. Files now run sequentially with a 20 s ceiling; the real fix is a per-file storage reset, not a longer timeout |
+| Item | What it is | Why it waits | Size |
+| --- | --- | --- | --- |
+| Test isolation | Files share process-global storage state (fake IndexedDB plus the storage singleton), so the suite runs sequentially (`fileParallelism: false`, 20 s ceiling) to stay deterministic | Root cause known; only priority is missing. The fix is a per-file storage reset, not a longer timeout | small |
+| Accessibility round | Clear the recorded contrast findings (Login 1 node, Home 24, Settings 1, Print 22 + 1 `scrollable-region-focusable`) and set an axe threshold later changes must hold | Needs the threshold the owner accepts (zero serious? zero critical only?) and whether the palette may change | medium |
+| CI browser E2E | Real-browser flows in CI (login, run, reload persistence, print dialog, import/export) | Undefined: which flows, how browsers are installed in CI, whether a red E2E blocks a release | medium |
+| PWA beyond the update path | Install prompt, offline editing, an offline-first caching policy | 2.0.1 shipped automatic adoption of new builds; the rest has no agreed behaviour, so it cannot be accepted | medium |
+| CI speed | Cut wall time: test parallelism after isolation, dependency caching, job split | Deliberately after test isolation — optimising an unstable base is waste | small |
+| Remaining dependency advisories | 12 low/moderate advisories left after the 2.0.0 audit cleared all critical and high | No exploitable path identified; needs a decision on whether transitive bumps deserve a round | small |
 
-## Product ideas, no owner decision
+## 2. Gated on a condition
 
-Carried from the pre-rebuild roadmap; none is planned. Each needs an owner decision and a
-version before work starts.
+No decision needed now; each row states what would start it.
 
-- Calendar: custom date range, week/year/list views, lazy day rendering and virtual scrolling
-  for large logs, calendar colour themes (one theme shipped).
-- Interaction: keyboard shortcuts, more run-button variations, particle/confetti effects.
-- Goals and insight: daily/weekly goals, achievement badges, pattern insights ("you escape most
-  on Mondays"), weekly/monthly reports.
-- Sharing: share the calendar as an image or a read-only link, opt-in anonymous statistics,
-  community comparison.
-- Mobile: React Native or native apps, touch gestures, haptic feedback.
-- Privacy: encrypting stored data at rest, an explicit "clear all data" control (export first).
-- Content: story progression over real time, additional action buttons, the unbuilt games
-  (slot machine, achievements, daily challenges) that PD-8 lists as placeholders.
+| Item | Trigger | Today |
+| --- | --- | --- |
+| Cloud storage | Owner opens it deliberately. Seven-step plan written ([plan](cloud-delivery-plan.md)), model in [cloud](../facts/cloud.md), DDL in [contract](../contract/postgres-schema.sql) | designed, planned, not implemented |
+| Run-index sharding | Measured index cost exceeds an agreed budget. Recorded Node/jsdom/fake-IDB numbers, relative not absolute: 1k hits → 95.7 KB / 39.6 ms; 10k → 910 KB / 252 ms; 50k → 4.57 MB / 1,183 ms | single index; no budget line defined yet |
+| Firefox verification | Build host Playwright/browser revisions match (`firefox-1555` installed, `firefox-1572` expected) | Chromium and WebKit smoke pass; Firefox unexercised |
+| Real power-loss durability | Owner authorises hardware validation | claim is design guarantee plus injectable fault tests |
 
-Cloud specifics now fixed by the owner: remote host, API and database not assumed co-located,
-polling delay accepted, and the interface must show *syncing* / *not synced* / *synced*. Those are
-recorded as rulings in [cloud](../facts/cloud.md) §9, not as backlog items.
+## 3. Product ideas
 
-## Closed by owner decision (2026-11-17)
+One row per idea, carried from the pre-rebuild wishlist. Each needs an owner answer before it can
+become a version; *touches* names the invariant set it would change.
 
-- `README_CN.md` **stays**: several language versions of the front page are wanted. `spec/` stays
-  English; only the README is multilingual.
-- `archived/` and `design/` were **deleted** in 2.1.0. Git history keeps them.
+### Calendar and history
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Custom date range | Pick a start and end; see or export only that window | S1 (R6, R7) |  |
+| Week / year / list views | Alternative renderings of the same hit set | S1 (R6) | month view only today |
+| Lazy days + virtual scrolling | Render only what is visible for very large histories | S1 performance | related to run-index sharding, not the same thing |
+| Calendar colour themes | More than the one shipped theme, saved per device | S1, S5 (S1) | preference only, no data change |
+
+### Interaction
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Keyboard shortcuts | Space/Enter to run, arrows to navigate | S1 (R4) | must not double-count |
+| More run-button variations | Walking, jumping, flying variants | S1 (R4) | animation cost, no data change |
+| Particles and confetti | Effects on run and on milestones | S1 | pure decoration |
+
+### Goals and insight
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Daily/weekly goals | Set a target and see progress | S1, S6 (new stored fact) | needs a stored shape and a migration |
+| Achievement badges | Unlock conditions over stored history | S2 (G4), S6 |  |
+| Pattern insights | "You escape most on Mondays" | S1 (R6) | derived only, nothing stored |
+| Weekly/monthly reports | Periodic summary, printable | S1, S5 (S5) |  |
+
+### Sharing
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Calendar as an image | Export the month as a picture | S1 |  |
+| Read-only share link | Publish a calendar to a URL | new surface, privacy boundary | needs a hosting decision and conflicts with PD-2 unless explicit |
+| Opt-in anonymous statistics | Contribute to aggregate numbers | privacy boundary | needs a consent design |
+| Community comparison | Compare with other users | privacy boundary |  |
+
+### Mobile
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Native or React Native app | A separate client | whole product | a second codebase, not a feature |
+| Touch gestures | Swipe between months | S1 |  |
+| Haptic feedback | Vibration on run | S1 |  |
+
+### Privacy and data
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Clear-all-data control | Delete the local account and its files from Settings, after an export prompt | S5 (new), [storage](../facts/storage.md) | a product gap rather than an idea: no invariant covers deletion today |
+| Encryption at rest | Encrypt the IndexedDB payloads | [storage](../facts/storage.md) | no threat model: the key would live beside the data on the same device; overlaps the durability limit already recorded |
+
+### Content
+
+| Idea | What it means | Touches | Note |
+| --- | --- | --- | --- |
+| Story progression | Narrative that advances with real time | S1, S2 |  |
+| Additional action buttons | Actions other than Run, each with an effect | S1 (R1–R4) | every button needs its own counting invariant |
+| The three unbuilt games | Slot machine, achievements game, daily challenges | S2 (G3) | labelled coming soon today; PD-8 says no commitment behind them |
+
+## 4. Closed
+
+| Item | Closed on | Why |
+| --- | --- | --- |
+| Several language versions of the front page | 2026-11-17 | owner wants `README.md` and `README_CN.md` side by side; `spec/` stays English |
+| `archived/` and `design/` directories | 2026-11-17 | deleted in 2.1.0; Git history keeps them |
+| The 2026-11-11 local stash | 2026-11-17 | discarded with evidence in [2.1.0](../versions/2.1.0.md); only its `.gitignore` entries were worth keeping |
+| Cloud host, co-location and polling latency | 2026-11-17 | settled as rulings in [cloud](../facts/cloud.md) §9, with a three-state sync indicator required in the UI |
