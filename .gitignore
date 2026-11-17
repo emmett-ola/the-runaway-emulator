@@ -32,3 +32,8 @@ session.md
 
 # colleague working reports stay out of version control
 REPORT*.md
+
+# local tool state
+.vercel
+output/
+.codex_tmp/
