@@ -12,7 +12,7 @@ so the app keeps showing the previous version number.
 | Version | Commit | Deployment | Status | Scope | Record |
 | --- | --- | --- | --- | --- | --- |
 | 2.1.0 | `92c2529` (tag `version/2.1.0`; structure commit `419780a`) | — (specification only) | current | repository structure converted to the project standard: pointer plus `spec/AGENTS.md`, `facts/`, `versions/`, `backlog/`, `contract/`; decision ledger and duplicate roadmap retired; three-branch model adopted | [2.1.0.md](2.1.0.md) |
-| 2.0.1 | `152e071f0b265a80cca74f32179c01d94db26f3e` | `dpl_CZD7VDaDo2e6VfgMF2aaxk4k1sDi` | superseded | login polish and update path: quieter setup copy, "at least 6 characters" with no technical vocabulary, new deployments adopted without a manual refresh | [2.0.1.md](2.0.1.md) |
+| 2.0.1 | `152e071f0b265a80cca74f32179c01d94db26f3e` | `dpl_CZD7VDaDo2e6VfgMF2aaxk4k1sDi` | accepted, superseded | login polish and update path: quieter setup copy, "at least 6 characters" with no technical vocabulary, new deployments adopted without a manual refresh | [2.0.1.md](2.0.1.md) |
 | 2.0.0 | `c99e410521045996cceeda7bcf79a56c6523b0d3` | `dpl_rX1CoyGUgi3Fcfn272gg1KnNn16r` | superseded | multi-file IndexedDB store, ZIP v1 archive, local password identity, fresh start, dependency audit; cloud disabled | [2.0.0.md](2.0.0.md) |
 | 1.2.0 | `efd6544b5dbb20f951afe6206af0664f8195affb` | `dpl_8zhRQVN6JQyCuHcuXtmpSsvRRzDV` | superseded | architecture rebuild complete and legacy tree cut over; six production smoke criteria verified | [1.2.0.md](1.2.0.md) |
 | 1.1.2 | `757c958` | `dpl_HqyPKSif2UJ9nhu7ARtk2EkJKF8M` | superseded | app shell extracted into `src/app/` behind a re-export shim; no behaviour change | ladder only (pre-standard) |
@@ -22,6 +22,12 @@ so the app keeps showing the previous version number.
 | 1.0.2 | `27978af` | `dpl_8EMnAtYkcu41qMfx1CvWqA6jAVkZ` | superseded | storage owns the stored bytes; a missing registration date is repaired once and persisted (closes D-12) | ladder only (pre-standard) |
 | 1.0.1 | `41ad563` | `dpl_33Up86dcjbfTkTaPue45gDd2RugK` | superseded | two React correctness fixes; acceptance 5/6, D-12 deferred at the time | ladder only (pre-standard) |
 | 1.0.0 | `fdcd731` | `dpl_ErTiLAB9bGR7u96HgFHjuD6bUYjZ` | superseded | print-surface repair and `zh_tw` logout | ladder only (pre-standard) |
+
+Every row from 1.0.0 upward carries a `version/X.Y.Z` tag on the commit in the second column;
+historic tags were back-filled on 2026-11-17 after each recorded commit was resolved and confirmed
+to be an ancestor of `main`. A version whose commit could not be located would carry no tag rather
+than a guessed one — none of the recorded ones needed skipping. Documentation-only follow-ups
+inside a version carry no tag.
 
 ## Rules
 

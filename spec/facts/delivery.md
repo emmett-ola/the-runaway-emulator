@@ -4,10 +4,9 @@
 
 Vercel is the only deployment. `vercel.json` and the Git integration on
 `origin/main` produce `runaway.macacloud.com`. The self-hosting artifacts
-(`Dockerfile`, `compose.yml`, `nginx.conf`, `.dockerignore`) are **archived, not
-kept as a live alternative**: they move to `archived/selfhost/` with a dated
-README saying they were never the path any release used. Reviving them would be its own
-version with its own evidence, not a fallback nobody tested.
+(`Dockerfile`, `compose.yml`, `nginx.conf`, `.dockerignore`) were **deleted** in 2.1.0 after
+being archived for a while; no release ever used them, and Git history keeps them. Reviving
+self-hosting is its own version with its own evidence, not a fallback nobody tested.
 
 `verify-build.sh` is retired. It could report "All checks passed" for a `dist/`
 it never built (D-1) — a gate that lies is worse than no gate, and its job is now

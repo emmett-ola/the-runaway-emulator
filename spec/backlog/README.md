@@ -39,10 +39,8 @@ version before work starts.
 - Content: story progression over real time, additional action buttons, the unbuilt games
   (slot machine, achievements, daily challenges) that PD-8 lists as placeholders.
 
-## Questions waiting for an owner decision
+## Closed by owner decision (2026-11-17)
 
-- `README_CN.md` duplicates `README.md` in Chinese. Keep a Chinese front page, fold it into one
-  bilingual README, or drop it? No answer yet, so it is untouched.
-- `archived/` holds the retired self-host files and `design/` holds pre-rebuild design material.
-  Archiving is deliberate ([delivery](../facts/delivery.md)); whether they stay in the repository
-  forever is undecided.
+- `README_CN.md` **stays**: several language versions of the front page are wanted. `spec/` stays
+  English; only the README is multilingual.
+- `archived/` and `design/` were **deleted** in 2.1.0. Git history keeps them.

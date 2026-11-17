@@ -21,8 +21,10 @@ storage is designed and disabled.
 
 ## Language
 
-Repository documents are English. Reports to the owner are Chinese; user-visible copy ships
-in `en_us`, `zh_cn` and `zh_tw` or it is not done.
+Repository documents under `spec/` are English. Reports to the owner are Chinese. The front
+page may exist in several languages (`README.md`, `README_CN.md`) — the owner wants that; it is
+the one place where the same content in two languages is allowed. User-visible copy ships in
+`en_us`, `zh_cn` and `zh_tw` or it is not done.
 
 ## Commands
 
@@ -57,7 +59,7 @@ commit (alias resolution plus served-byte sha256). A release whose CI is red is 
 
 - Never commit `data/` or any real local state; sample data lives with the code and is marked.
 - No secrets, tokens or credentials in the repository, in a record, or in a report.
-- Deployment happens only through Vercel from `main`. Self-hosting artifacts stay archived;
-  reviving them is a new version with its own evidence.
+- Deployment happens only through Vercel from `main`. Self-hosting artifacts are deleted (Git
+  history keeps them); reviving them is a new version with its own evidence.
 - Cloud operation stays off until the owner opens it. See [cloud](facts/cloud.md).
 - Nothing here is published outside the internal host without an owner decision.
